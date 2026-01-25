@@ -165,7 +165,8 @@ function normalizeState(imported) {
     quadrant: QUADRANTS.includes(system.quadrant) ? system.quadrant : 'Alpha',
     ownerStatus: OWNER_STATUSES.includes(system.ownerStatus)
       ? system.ownerStatus
-      : 'None'
+      : 'None',
+    fullyDeveloped: Boolean(system.fullyDeveloped)
   }));
 
   normalized.activeEmpireId =
@@ -354,6 +355,17 @@ function findFirstEmpireForSeat(seatId) {
   return state.empires.find((empire) => empire.seatId === seatId)?.id || null;
 }
 
+function getPrimaryEmpireForSeat(seatId) {
+  if (!seatId) return null;
+  const activeEmpire = state.empires.find(
+    (empire) => empire.id === state.activeEmpireId && empire.seatId === seatId
+  );
+  if (activeEmpire) {
+    return activeEmpire;
+  }
+  return state.empires.find((empire) => empire.seatId === seatId) || null;
+}
+
 function calculateTotals(empireId) {
   const systems = getSystemsForEmpire(empireId);
   return systems.reduce(
@@ -381,19 +393,14 @@ function calculateDefense(empire) {
 }
 
 function calculateTradeTotals(seatId) {
-  const totals = {
-    outgoing: { Production: 0, Research: 0, Culture: 0 },
-    incoming: { Production: 0, Research: 0, Culture: 0 }
-  };
+  const totals = { Production: 0, Research: 0, Culture: 0 };
 
   state.tradeAgreements.forEach((agreement) => {
     if (agreement.fromSeatId === seatId) {
-      totals.outgoing[agreement.giveType] += agreement.giveAmount;
-      totals.incoming[agreement.receiveType] += agreement.receiveAmount;
+      totals[agreement.receiveType] += agreement.receiveAmount;
     }
     if (agreement.toType === 'seat' && agreement.toSeatId === seatId) {
-      totals.outgoing[agreement.receiveType] += agreement.receiveAmount;
-      totals.incoming[agreement.giveType] += agreement.giveAmount;
+      totals[agreement.giveType] += agreement.giveAmount;
     }
   });
 
@@ -728,6 +735,13 @@ function renderSystemForm() {
     Starbase
   `;
 
+  const fullyDevelopedLabel = document.createElement('label');
+  fullyDevelopedLabel.className = 'checkbox-label';
+  fullyDevelopedLabel.innerHTML = `
+    <input type="checkbox" id="system-fully-developed" />
+    Fully Developed
+  `;
+
   const ownerSelect = document.createElement('select');
   const unownedOption = document.createElement('option');
   unownedOption.value = '';
@@ -756,7 +770,8 @@ function renderSystemForm() {
       ownerEmpireId: ownerSelect.value || null,
       hasStarbase: starbaseLabel.querySelector('input').checked,
       quadrant: quadrantSelect.value,
-      ownerStatus: ownerStatusSelect.value
+      ownerStatus: ownerStatusSelect.value,
+      fullyDeveloped: fullyDevelopedLabel.querySelector('input').checked
     });
     nameInput.value = '';
     productionInput.value = '';
@@ -766,6 +781,7 @@ function renderSystemForm() {
     quadrantSelect.value = 'Alpha';
     ownerStatusSelect.value = 'None';
     starbaseLabel.querySelector('input').checked = false;
+    fullyDevelopedLabel.querySelector('input').checked = false;
   });
 
   elements.systemForm.append(
@@ -776,6 +792,7 @@ function renderSystemForm() {
     controlInput,
     quadrantSelect,
     ownerStatusSelect,
+    fullyDevelopedLabel,
     starbaseLabel,
     ownerSelect,
     addButton
@@ -819,27 +836,27 @@ function renderTradeForm() {
   TRADE_TYPES.forEach((resource) => {
     const option = document.createElement('option');
     option.value = resource;
-    option.textContent = `Give ${resource}`;
+    option.textContent = `Partner Gains ${resource}`;
     giveResourceSelect.appendChild(option);
   });
 
   const giveAmountInput = document.createElement('input');
   giveAmountInput.type = 'number';
   giveAmountInput.min = '0';
-  giveAmountInput.placeholder = 'Give amount';
+  giveAmountInput.placeholder = 'Partner gain';
 
   const receiveResourceSelect = document.createElement('select');
   TRADE_TYPES.forEach((resource) => {
     const option = document.createElement('option');
     option.value = resource;
-    option.textContent = `Receive ${resource}`;
+    option.textContent = `You Gain ${resource}`;
     receiveResourceSelect.appendChild(option);
   });
 
   const receiveAmountInput = document.createElement('input');
   receiveAmountInput.type = 'number';
   receiveAmountInput.min = '0';
-  receiveAmountInput.placeholder = 'Receive amount';
+  receiveAmountInput.placeholder = 'Your gain';
 
   const addButton = document.createElement('button');
   addButton.className = 'primary';
@@ -912,9 +929,9 @@ function renderTradeAgreements() {
         ? agreement.toNpcName
         : toSeat?.name || 'Player';
     row.innerHTML = `
-      <strong>${fromSeat?.name || 'Player'}</strong> → ${targetLabel}
-      <span class="summary-pill">Give ${agreement.giveType}: ${agreement.giveAmount}</span>
-      <span class="summary-pill">Receive ${agreement.receiveType}: ${agreement.receiveAmount}</span>
+      <strong>${fromSeat?.name || 'Player'}</strong> ↔ ${targetLabel}
+      <span class="summary-pill">${targetLabel} gains ${agreement.giveType}: ${agreement.giveAmount}</span>
+      <span class="summary-pill">${fromSeat?.name || 'Player'} gains ${agreement.receiveType}: ${agreement.receiveAmount}</span>
       <button data-delete="${agreement.id}" class="danger">Revoke</button>
     `;
     row.querySelector('button').addEventListener('click', () => {
@@ -950,6 +967,7 @@ function renderSystems() {
         <th>CTRL</th>
         <th>Quadrant</th>
         <th>Owner Status</th>
+        <th>Fully Developed</th>
         <th>Starbase</th>
         <th>Owner</th>
       </tr>
@@ -992,6 +1010,11 @@ function renderSystems() {
           `
           ).join('')}
         </select>
+      </td>
+      <td>
+        <input type="checkbox" data-field="fully-developed" ${
+          system.fullyDeveloped ? 'checked' : ''
+        } />
       </td>
       <td>
         <input type="checkbox" data-field="starbase" ${
@@ -1039,6 +1062,13 @@ function renderSystems() {
     const ownerStatusSelect = row.querySelector('select[data-field="owner-status"]');
     ownerStatusSelect.addEventListener('change', (event) => {
       updateSystem(system.id, { ownerStatus: event.target.value });
+    });
+
+    const fullyDevelopedInput = row.querySelector(
+      'input[data-field="fully-developed"]'
+    );
+    fullyDevelopedInput.addEventListener('change', (event) => {
+      updateSystem(system.id, { fullyDeveloped: event.target.checked });
     });
 
     const starbaseInput = row.querySelector('input[data-field="starbase"]');
@@ -1141,8 +1171,7 @@ function renderPlayerInterface() {
       <span class="summary-pill">$ ${totals.dollars}</span>
     </div>
     <p class="muted">Total Nodes — P:${nodes.production} R:${nodes.research} C:${nodes.culture} CTRL:${nodes.control}</p>
-    <p class="muted">Trade Outgoing — P:${tradeTotals.outgoing.Production} R:${tradeTotals.outgoing.Research} C:${tradeTotals.outgoing.Culture}</p>
-    <p class="muted">Trade Incoming — P:${tradeTotals.incoming.Production} R:${tradeTotals.incoming.Research} C:${tradeTotals.incoming.Culture}</p>
+    <p class="muted">Trade Gains — P:${tradeTotals.Production} R:${tradeTotals.Research} C:${tradeTotals.Culture}</p>
   `;
 
   const empireCard = document.createElement('div');
@@ -1194,6 +1223,10 @@ function openEarningsModal() {
     )
     .join('');
 
+  const tradeNote = state.tradeAgreements.length
+    ? '<br /><em>Trades add resources to each party; no resources are deducted.</em>'
+    : '';
+
   if (state.tradeAgreements.length === 0) {
     elements.tradeSummary.textContent = 'No trade agreements recorded.';
   } else {
@@ -1210,9 +1243,13 @@ function openEarningsModal() {
           agreement.toType === 'npc'
             ? agreement.toNpcName
             : toSeat?.name || 'Player';
-        return `${fromSeat?.name || 'Player'} → ${targetLabel}: Give ${agreement.giveType} ${agreement.giveAmount}, Receive ${agreement.receiveType} ${agreement.receiveAmount}`;
+        return `${fromSeat?.name || 'Player'} ↔ ${targetLabel}: ${targetLabel} gains ${agreement.giveType} ${agreement.giveAmount}, ${fromSeat?.name || 'Player'} gains ${agreement.receiveType} ${agreement.receiveAmount}`;
       })
       .join('<br />');
+  }
+
+  if (tradeNote) {
+    elements.tradeSummary.innerHTML += tradeNote;
   }
 
   elements.earningsModal.classList.remove('hidden');
@@ -1231,8 +1268,21 @@ function applyEarnings() {
   });
   pendingEarnings = null;
   elements.earningsModal.classList.add('hidden');
+  state.tradeAgreements.forEach((agreement) => {
+    const fromEmpire = getPrimaryEmpireForSeat(agreement.fromSeatId);
+    if (fromEmpire) {
+      fromEmpire.resources[agreement.receiveType] += agreement.receiveAmount;
+    }
+    if (agreement.toType === 'seat') {
+      const toEmpire = getPrimaryEmpireForSeat(agreement.toSeatId);
+      if (toEmpire) {
+        toEmpire.resources[agreement.giveType] += agreement.giveAmount;
+      }
+    }
+  });
   saveState();
   renderEmpires();
+  renderPlayerInterface();
   logEntry('Earnings applied for all empires.');
 }
 
