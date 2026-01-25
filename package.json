@@ -1,0 +1,14 @@
+{
+  "name": "stt-ascendancy-companion",
+  "version": "0.1.0",
+  "description": "Star Trek Ascendancy companion app for tracking co-op/competitive playtest state.",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^30.0.1"
+  }
+}

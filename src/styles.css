@@ -1,0 +1,209 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: #0b0f1a;
+  color: #f4f6ff;
+}
+
+body {
+  margin: 0;
+  background: #0b0f1a;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, #1f2a44, #0b0f1a);
+  border-bottom: 1px solid #223;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: #b8c1d6;
+}
+
+main {
+  padding: 24px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel {
+  background: #141a2b;
+  border: 1px solid #1f2740;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.metric {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+
+button,
+select,
+input {
+  background: #1f2740;
+  color: #f4f6ff;
+  border: 1px solid #2d3758;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+button.primary {
+  background: #3b6ff5;
+  border-color: #3b6ff5;
+}
+
+button.danger {
+  background: #a8253b;
+  border-color: #a8253b;
+}
+
+button:hover {
+  filter: brightness(1.1);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #1a2240;
+  border: 1px solid #2d3758;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.card h3 {
+  margin-top: 0;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.initiative-order {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.log {
+  max-height: 280px;
+  overflow: auto;
+  background: #0b0f1a;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #1f2740;
+}
+
+.log-entry {
+  font-family: "Consolas", monospace;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.accent-preview {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #f4f6ff;
+}
+
+.file-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.file-input input {
+  display: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-card {
+  background: #141a2b;
+  border: 1px solid #2d3758;
+  border-radius: 12px;
+  padding: 24px;
+  width: min(640px, 90vw);
+}
+
+.resource-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resource-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.muted {
+  color: #b8c1d6;
+  font-size: 13px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #2d3758;
+}
+
+.table input,
+.table select {
+  width: 100%;
+  box-sizing: border-box;
+}

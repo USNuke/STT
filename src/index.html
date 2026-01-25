@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Star Trek Ascendancy Companion</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header id="app-header" class="header">
+      <div>
+        <h1>Star Trek Ascendancy Companion</h1>
+        <p class="subtitle">Playtest v1 — state tracker for co-op / competitive games.</p>
+      </div>
+      <div class="header-controls">
+        <label>
+          Active Empire
+          <select id="active-empire"></select>
+        </label>
+        <div class="accent-preview" id="accent-preview"></div>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Round &amp; Phase</h2>
+        <div class="grid two">
+          <div>
+            <p class="metric">Round <span id="round-value">1</span></p>
+            <button id="next-round" class="primary">Advance to Next Round</button>
+          </div>
+          <div>
+            <p class="metric">Phase <span id="phase-value">Initiative</span></p>
+            <div class="button-row">
+              <button id="prev-phase">Previous Phase</button>
+              <button id="next-phase">Next Phase</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Initiative</h2>
+        <div id="initiative-order" class="initiative-order"></div>
+        <div class="initiative-controls">
+          <div id="initiative-selects" class="grid three"></div>
+          <button id="random-initiative" class="primary">Random Initiative</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Seats</h2>
+        <div id="seats" class="grid three"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Empires</h2>
+        <div id="empire-form" class="form-row"></div>
+        <div id="empires"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Star Systems</h2>
+        <div id="system-form" class="form-row"></div>
+        <div id="systems"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Earnings (Building Phase)</h2>
+        <p>Calculate Production, Research, Culture, and Dollars based on owned systems.</p>
+        <button id="open-earnings" class="primary">Calculate Earnings</button>
+      </section>
+
+      <section class="panel">
+        <h2>Logs</h2>
+        <div class="button-row">
+          <button id="copy-log">Copy to Clipboard</button>
+          <button id="export-log">Export Log (.txt)</button>
+        </div>
+        <div id="log-entries" class="log"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Persistence</h2>
+        <div class="button-row">
+          <button id="export-state">Export State (.json)</button>
+          <label class="file-input">
+            Import State
+            <input type="file" id="import-state" accept="application/json" />
+          </label>
+          <button id="reset-state" class="danger">Reset to Defaults</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="earnings-modal" class="modal hidden">
+      <div class="modal-card">
+        <h3>Earnings Summary</h3>
+        <div id="earnings-breakdown"></div>
+        <div class="button-row">
+          <button id="apply-earnings" class="primary">Apply Earnings</button>
+          <button id="cancel-earnings">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
