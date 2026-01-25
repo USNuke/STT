@@ -34,6 +34,7 @@
             <div class="button-row">
               <button id="prev-phase">Previous Phase</button>
               <button id="next-phase">Next Phase</button>
+              <button id="undo-action">Undo Last Action</button>
             </div>
           </div>
         </div>
@@ -78,6 +79,13 @@
       </section>
 
       <section class="panel">
+        <h2>Trade Agreements</h2>
+        <p class="muted">Track player-to-player or player-to-NPC trade during Production.</p>
+        <div id="trade-form" class="form-row"></div>
+        <div id="trade-list" class="trade-list"></div>
+      </section>
+
+      <section class="panel">
         <h2>Earnings (Building Phase)</h2>
         <p>Calculate Production, Research, Culture, and Dollars based on owned systems.</p>
         <button id="open-earnings" class="primary">Calculate Earnings</button>
@@ -109,6 +117,8 @@
       <div class="modal-card">
         <h3>Earnings Summary</h3>
         <div id="earnings-breakdown"></div>
+        <h4>Trade Agreements (Production Phase)</h4>
+        <div id="trade-summary" class="muted"></div>
         <div class="button-row">
           <button id="apply-earnings" class="primary">Apply Earnings</button>
           <button id="cancel-earnings">Cancel</button>

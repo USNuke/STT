@@ -26,6 +26,7 @@ const CIVILIZATION_COLORS = {
 
 const PHASES = ['Initiative', 'Command', 'Building', 'Recharge'];
 const QUADRANTS = ['Alpha', 'Beta'];
+const TRADE_TYPES = ['Production', 'Research', 'Culture'];
 
 const defaultState = () => ({
   round: 1,
@@ -39,6 +40,8 @@ const defaultState = () => ({
   systems: [],
   activeEmpireId: null,
   playerSeatId: 'seat-1',
+  tradeAgreements: [],
+  history: [],
   logs: []
 });
 
@@ -53,6 +56,7 @@ const elements = {
   nextRound: document.getElementById('next-round'),
   prevPhase: document.getElementById('prev-phase'),
   nextPhase: document.getElementById('next-phase'),
+  undoAction: document.getElementById('undo-action'),
   initiativeOrder: document.getElementById('initiative-order'),
   initiativeSelects: document.getElementById('initiative-selects'),
   randomInitiative: document.getElementById('random-initiative'),
@@ -61,11 +65,14 @@ const elements = {
   empires: document.getElementById('empires'),
   systemForm: document.getElementById('system-form'),
   systems: document.getElementById('systems'),
+  tradeForm: document.getElementById('trade-form'),
+  tradeList: document.getElementById('trade-list'),
   playerSeat: document.getElementById('player-seat'),
   playerSummary: document.getElementById('player-summary'),
   openEarnings: document.getElementById('open-earnings'),
   earningsModal: document.getElementById('earnings-modal'),
   earningsBreakdown: document.getElementById('earnings-breakdown'),
+  tradeSummary: document.getElementById('trade-summary'),
   applyEarnings: document.getElementById('apply-earnings'),
   cancelEarnings: document.getElementById('cancel-earnings'),
   logEntries: document.getElementById('log-entries'),
@@ -90,6 +97,26 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem('stt-companion-state', JSON.stringify(state));
+}
+
+function pushHistory() {
+  const snapshot = JSON.parse(JSON.stringify({ ...state, history: [] }));
+  state.history = state.history || [];
+  state.history.unshift(snapshot);
+  if (state.history.length > 20) {
+    state.history.pop();
+  }
+}
+
+function undoLastAction() {
+  if (!state.history || state.history.length === 0) {
+    return;
+  }
+  const [previous, ...rest] = state.history;
+  state = { ...previous, history: rest };
+  saveState();
+  renderAll();
+  logEntry('Undo applied.');
 }
 
 function normalizeState(imported) {
@@ -143,6 +170,22 @@ function normalizeState(imported) {
   normalized.playerSeatId =
     imported.playerSeatId || normalized.seats[0]?.id || base.seats[0].id;
 
+  normalized.tradeAgreements = (imported.tradeAgreements || []).map(
+    (agreement, index) => ({
+      id: agreement.id || `trade-${Date.now()}-${index}`,
+      fromSeatId: agreement.fromSeatId || normalized.seats[0]?.id,
+      toType: agreement.toType === 'npc' ? 'npc' : 'seat',
+      toSeatId: agreement.toSeatId || normalized.seats[0]?.id,
+      toNpcName: agreement.toNpcName || 'NPC',
+      resourceType: TRADE_TYPES.includes(agreement.resourceType)
+        ? agreement.resourceType
+        : 'Production',
+      amount: Math.max(0, Number(agreement.amount) || 0)
+    })
+  );
+
+  normalized.history = imported.history || [];
+
   normalized.logs = imported.logs || [];
 
   return normalized;
@@ -156,6 +199,7 @@ function logEntry(message) {
 }
 
 function setPhase(newPhase) {
+  pushHistory();
   state.phase = newPhase;
   saveState();
   renderPhase();
@@ -163,6 +207,7 @@ function setPhase(newPhase) {
 }
 
 function setRound(round) {
+  pushHistory();
   state.round = round;
   state.phase = 'Initiative';
   saveState();
@@ -173,6 +218,7 @@ function setRound(round) {
 function updateSeatName(seatId, name) {
   const seat = state.seats.find((item) => item.id === seatId);
   if (!seat) return;
+  pushHistory();
   seat.name = name;
   saveState();
   renderInitiative();
@@ -183,6 +229,7 @@ function updateSeatName(seatId, name) {
 function updateInitiative(seatId, rank) {
   const seat = state.seats.find((item) => item.id === seatId);
   if (!seat) return;
+  pushHistory();
   seat.initiative = rank;
   saveState();
   renderInitiative();
@@ -190,6 +237,7 @@ function updateInitiative(seatId, rank) {
 }
 
 function randomizeInitiative() {
+  pushHistory();
   const shuffled = [...state.seats].sort(() => Math.random() - 0.5);
   shuffled.forEach((seat, index) => {
     seat.initiative = index + 1;
@@ -202,6 +250,7 @@ function randomizeInitiative() {
 }
 
 function addEmpire({ name, civilization, seatId }) {
+  pushHistory();
   const newEmpire = {
     id: `empire-${Date.now()}`,
     name,
@@ -226,6 +275,7 @@ function addEmpire({ name, civilization, seatId }) {
 function updateEmpire(empireId, updates) {
   const empire = state.empires.find((item) => item.id === empireId);
   if (!empire) return;
+  pushHistory();
   Object.assign(empire, updates);
   saveState();
   renderAll();
@@ -234,6 +284,7 @@ function updateEmpire(empireId, updates) {
 function adjustResource(empireId, resource, delta) {
   const empire = state.empires.find((item) => item.id === empireId);
   if (!empire) return;
+  pushHistory();
   const current = empire.resources[resource] || 0;
   empire.resources[resource] = Math.max(0, current + delta);
   saveState();
@@ -243,6 +294,7 @@ function adjustResource(empireId, resource, delta) {
 function adjustCounter(empireId, key, delta) {
   const empire = state.empires.find((item) => item.id === empireId);
   if (!empire) return;
+  pushHistory();
   empire[key] = Math.max(0, (empire[key] || 0) + delta);
   saveState();
   renderEmpires();
@@ -255,12 +307,14 @@ function getEmpireColor(empireId) {
 }
 
 function setActiveEmpire(empireId) {
+  pushHistory();
   state.activeEmpireId = empireId || null;
   saveState();
   renderActiveEmpire();
 }
 
 function addSystem(system) {
+  pushHistory();
   state.systems.push({
     ...system,
     id: `system-${Date.now()}`
@@ -273,6 +327,7 @@ function addSystem(system) {
 function updateSystem(systemId, updates) {
   const system = state.systems.find((item) => item.id === systemId);
   if (!system) return;
+  pushHistory();
   Object.assign(system, updates);
   saveState();
   renderSystems();
@@ -315,6 +370,24 @@ function calculateDefense(empire) {
       (system.hasStarbase ? 1 : 0),
     0
   );
+}
+
+function calculateTradeTotals(seatId) {
+  const totals = {
+    outgoing: { Production: 0, Research: 0, Culture: 0 },
+    incoming: { Production: 0, Research: 0, Culture: 0 }
+  };
+
+  state.tradeAgreements.forEach((agreement) => {
+    if (agreement.fromSeatId === seatId) {
+      totals.outgoing[agreement.resourceType] += agreement.amount;
+    }
+    if (agreement.toType === 'seat' && agreement.toSeatId === seatId) {
+      totals.incoming[agreement.resourceType] += agreement.amount;
+    }
+  });
+
+  return totals;
 }
 
 function renderPhase() {
@@ -468,8 +541,12 @@ function renderEmpires() {
     const card = document.createElement('div');
     card.className = 'card empire-card';
     card.style.borderColor = empireColor;
-    card.style.boxShadow = `0 0 0 2px ${hexToRgba(empireColor, 0.3)}`;
+    card.style.boxShadow = `0 0 0 2px ${hexToRgba(empireColor, 0.4)}`;
     card.style.setProperty('--empire-color', empireColor);
+    card.style.background = `linear-gradient(140deg, ${hexToRgba(
+      empireColor,
+      0.35
+    )}, #141a2b 60%)`;
     card.innerHTML = `
       <h3>${empire.name}</h3>
       <label>
@@ -684,6 +761,135 @@ function renderSystemForm() {
   );
 }
 
+function renderTradeForm() {
+  elements.tradeForm.innerHTML = '';
+  const fromSeatSelect = document.createElement('select');
+  state.seats.forEach((seat) => {
+    const option = document.createElement('option');
+    option.value = seat.id;
+    option.textContent = seat.name;
+    fromSeatSelect.appendChild(option);
+  });
+
+  const toTypeSelect = document.createElement('select');
+  [
+    { value: 'seat', label: 'Player' },
+    { value: 'npc', label: 'NPC' }
+  ].forEach((type) => {
+    const option = document.createElement('option');
+    option.value = type.value;
+    option.textContent = type.label;
+    toTypeSelect.appendChild(option);
+  });
+
+  const toSeatSelect = document.createElement('select');
+  state.seats.forEach((seat) => {
+    const option = document.createElement('option');
+    option.value = seat.id;
+    option.textContent = seat.name;
+    toSeatSelect.appendChild(option);
+  });
+
+  const toNpcInput = document.createElement('input');
+  toNpcInput.placeholder = 'NPC name';
+  toNpcInput.value = 'NPC';
+
+  const resourceSelect = document.createElement('select');
+  TRADE_TYPES.forEach((resource) => {
+    const option = document.createElement('option');
+    option.value = resource;
+    option.textContent = resource;
+    resourceSelect.appendChild(option);
+  });
+
+  const amountInput = document.createElement('input');
+  amountInput.type = 'number';
+  amountInput.min = '0';
+  amountInput.placeholder = 'Amount';
+
+  const addButton = document.createElement('button');
+  addButton.className = 'primary';
+  addButton.textContent = 'Add Trade';
+
+  const updateTradeVisibility = () => {
+    const isNpc = toTypeSelect.value === 'npc';
+    toSeatSelect.style.display = isNpc ? 'none' : 'block';
+    toNpcInput.style.display = isNpc ? 'block' : 'none';
+  };
+
+  toTypeSelect.addEventListener('change', updateTradeVisibility);
+  updateTradeVisibility();
+
+  addButton.addEventListener('click', () => {
+    const amount = Number(amountInput.value) || 0;
+    if (amount <= 0) return;
+    pushHistory();
+    const agreement = {
+      id: `trade-${Date.now()}`,
+      fromSeatId: fromSeatSelect.value,
+      toType: toTypeSelect.value,
+      toSeatId: toSeatSelect.value,
+      toNpcName: toNpcInput.value.trim() || 'NPC',
+      resourceType: resourceSelect.value,
+      amount
+    };
+    state.tradeAgreements.push(agreement);
+    saveState();
+    renderTradeAgreements();
+    renderPlayerInterface();
+    logEntry('Trade agreement added.');
+    amountInput.value = '';
+  });
+
+  elements.tradeForm.append(
+    fromSeatSelect,
+    toTypeSelect,
+    toSeatSelect,
+    toNpcInput,
+    resourceSelect,
+    amountInput,
+    addButton
+  );
+}
+
+function renderTradeAgreements() {
+  elements.tradeList.innerHTML = '';
+  if (state.tradeAgreements.length === 0) {
+    elements.tradeList.textContent = 'No trade agreements yet.';
+    return;
+  }
+
+  state.tradeAgreements.forEach((agreement) => {
+    const row = document.createElement('div');
+    row.className = 'trade-item';
+    const fromSeat = state.seats.find((seat) => seat.id === agreement.fromSeatId);
+    const toSeat =
+      agreement.toType === 'seat'
+        ? state.seats.find((seat) => seat.id === agreement.toSeatId)
+        : null;
+    const targetLabel =
+      agreement.toType === 'npc'
+        ? agreement.toNpcName
+        : toSeat?.name || 'Player';
+    row.innerHTML = `
+      <strong>${fromSeat?.name || 'Player'}</strong> → ${targetLabel}
+      <span class="summary-pill">${agreement.resourceType}: ${agreement.amount}</span>
+      <button data-delete="${agreement.id}" class="danger">Revoke</button>
+    `;
+    row.querySelector('button').addEventListener('click', () => {
+      pushHistory();
+      state.tradeAgreements = state.tradeAgreements.filter(
+        (item) => item.id !== agreement.id
+      );
+      saveState();
+      renderTradeAgreements();
+      renderPlayerInterface();
+      logEntry('Trade agreement revoked.');
+    });
+    elements.tradeList.appendChild(row);
+  });
+}
+
 function renderSystems() {
   elements.systems.innerHTML = '';
   if (state.systems.length === 0) {
@@ -715,7 +921,7 @@ function renderSystems() {
       ? getEmpireColor(system.ownerEmpireId)
       : null;
     if (ownerColor) {
-      row.style.background = hexToRgba(ownerColor, 0.15);
+      row.style.background = hexToRgba(ownerColor, 0.25);
     }
     row.innerHTML = `
       <td><input value="${system.name}" /></td>
@@ -817,6 +1023,8 @@ function renderAll() {
   renderEmpireForm();
   renderEmpires();
   renderSystemForm();
+  renderTradeForm();
+  renderTradeAgreements();
   renderSystems();
   renderLogs();
 }
@@ -864,6 +1072,7 @@ function renderPlayerInterface() {
 
   const seatCard = document.createElement('div');
   seatCard.className = 'card';
+  const tradeTotals = calculateTradeTotals(state.playerSeatId);
   seatCard.innerHTML = `
     <h3>${seat ? seat.name : 'Seat'}</h3>
     <p class="muted">Controlled Empires: ${seatEmpires.length || 0}</p>
@@ -874,6 +1083,8 @@ function renderPlayerInterface() {
       <span class="summary-pill">$ ${totals.dollars}</span>
     </div>
     <p class="muted">Total Nodes — P:${nodes.production} R:${nodes.research} C:${nodes.culture} CTRL:${nodes.control}</p>
+    <p class="muted">Trade Outgoing — P:${tradeTotals.outgoing.Production} R:${tradeTotals.outgoing.Research} C:${tradeTotals.outgoing.Culture}</p>
+    <p class="muted">Trade Incoming — P:${tradeTotals.incoming.Production} R:${tradeTotals.incoming.Research} C:${tradeTotals.incoming.Culture}</p>
   `;
 
   const empireCard = document.createElement('div');
@@ -925,11 +1136,33 @@ function openEarningsModal() {
     )
     .join('');
 
+  if (state.tradeAgreements.length === 0) {
+    elements.tradeSummary.textContent = 'No trade agreements recorded.';
+  } else {
+    elements.tradeSummary.innerHTML = state.tradeAgreements
+      .map((agreement) => {
+        const fromSeat = state.seats.find(
+          (seat) => seat.id === agreement.fromSeatId
+        );
+        const toSeat =
+          agreement.toType === 'seat'
+            ? state.seats.find((seat) => seat.id === agreement.toSeatId)
+            : null;
+        const targetLabel =
+          agreement.toType === 'npc'
+            ? agreement.toNpcName
+            : toSeat?.name || 'Player';
+        return `${fromSeat?.name || 'Player'} → ${targetLabel}: ${agreement.resourceType} ${agreement.amount}`;
+      })
+      .join('<br />');
+  }
+
   elements.earningsModal.classList.remove('hidden');
 }
 
 function applyEarnings() {
   if (!pendingEarnings) return;
+  pushHistory();
   pendingEarnings.forEach((entry) => {
     const empire = state.empires.find((item) => item.id === entry.empireId);
     if (!empire) return;
@@ -977,6 +1210,7 @@ function importStateFile(file) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
+      pushHistory();
       state = normalizeState(parsed);
       saveState();
       renderAll();
@@ -989,6 +1223,7 @@ function importStateFile(file) {
 }
 
 function resetState() {
+  pushHistory();
   state = defaultState();
   saveState();
   renderAll();
@@ -1007,6 +1242,8 @@ function attachEventListeners() {
   elements.activeEmpire.addEventListener('change', (event) => {
     setActiveEmpire(event.target.value || null);
   });
+
+  elements.undoAction.addEventListener('click', undoLastAction);
 
   elements.playerSeat.addEventListener('change', (event) => {
     state.playerSeatId = event.target.value;

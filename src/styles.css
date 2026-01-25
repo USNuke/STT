@@ -12,7 +12,7 @@
 body {
   margin: 0;
   background: #0b0f1a;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .header {
@@ -56,7 +56,7 @@ main {
   background: linear-gradient(90deg, var(--lcars-orange), var(--accent));
   color: #0b0f1a;
   border-radius: 12px;
-  font-size: 22px;
+  font-size: 24px;
   letter-spacing: 0.5px;
 }
 
@@ -74,7 +74,7 @@ main {
 }
 
 .metric {
-  font-size: 24px;
+  font-size: 26px;
   margin: 0 0 12px;
 }
 
@@ -86,13 +86,13 @@ input {
   border: 1px solid #2d3758;
   border-radius: 10px;
   padding: 10px 14px;
-  font-size: 17px;
+  font-size: 19px;
 }
 
 .resource-buttons button {
-  width: 38px;
-  height: 38px;
-  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
   padding: 0;
 }
 
@@ -175,7 +175,7 @@ input:focus {
 
 .log-entry {
   font-family: "Consolas", monospace;
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 6px;
 }
 
@@ -267,4 +267,20 @@ input:focus {
   border: 1px solid var(--accent);
   margin-right: 6px;
   font-size: 13px;
+}
+
+.trade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trade-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #0f1426;
+  border: 1px solid #2d3758;
 }
