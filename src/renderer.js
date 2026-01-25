@@ -25,6 +25,7 @@ const CIVILIZATION_COLORS = {
 };
 
 const PHASES = ['Initiative', 'Command', 'Building', 'Recharge'];
+const QUADRANTS = ['Alpha', 'Beta'];
 
 const defaultState = () => ({
   round: 1,
@@ -131,7 +132,9 @@ function normalizeState(imported) {
     research: Number(system.research) || 0,
     culture: Number(system.culture) || 0,
     control: Number(system.control) || 0,
-    ownerEmpireId: system.ownerEmpireId || null
+    ownerEmpireId: system.ownerEmpireId || null,
+    hasStarbase: Boolean(system.hasStarbase),
+    quadrant: QUADRANTS.includes(system.quadrant) ? system.quadrant : 'Alpha'
   }));
 
   normalized.activeEmpireId =
@@ -245,6 +248,12 @@ function adjustCounter(empireId, key, delta) {
   renderEmpires();
 }
 
+function getEmpireColor(empireId) {
+  const empire = state.empires.find((item) => item.id === empireId);
+  if (!empire) return '#2d3758';
+  return CIVILIZATION_COLORS[empire.civilization] || '#2d3758';
+}
+
 function setActiveEmpire(empireId) {
   state.activeEmpireId = empireId || null;
   saveState();
@@ -296,12 +305,15 @@ function calculateTotals(empireId) {
 }
 
 function calculateDefense(empire) {
-  const totals = calculateTotals(empire.id);
-  return (
-    empire.starbases * 10 +
-    empire.weaponLevel * 2 +
-    empire.shieldLevel * 2 +
-    totals.control
+  const systems = getSystemsForEmpire(empire.id);
+  return systems.reduce(
+    (total, system) =>
+      total +
+      system.production +
+      system.research +
+      system.control +
+      (system.hasStarbase ? 1 : 0),
+    0
   );
 }
 
@@ -389,13 +401,13 @@ function renderInitiative() {
 
 function renderSeats() {
   elements.seats.innerHTML = '';
-  state.seats.forEach((seat) => {
+  state.seats.forEach((seat, index) => {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <h3>${seat.name}</h3>
+      <h3>Player ${index + 1}</h3>
       <label>
-        Seat Name
+        Player Name
         <input type="text" value="${seat.name}" />
       </label>
       <p>Initiative Rank: ${seat.initiative}</p>
@@ -452,10 +464,18 @@ function renderEmpires() {
   state.empires.forEach((empire) => {
     const totals = calculateTotals(empire.id);
     const defense = calculateDefense(empire);
+    const empireColor = CIVILIZATION_COLORS[empire.civilization] || '#2d3758';
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'card empire-card';
+    card.style.borderColor = empireColor;
+    card.style.boxShadow = `0 0 0 2px ${hexToRgba(empireColor, 0.3)}`;
+    card.style.setProperty('--empire-color', empireColor);
     card.innerHTML = `
       <h3>${empire.name}</h3>
+      <label>
+        Empire Name
+        <input type="text" value="${empire.name}" data-field="name" />
+      </label>
       <p>Civilization: ${empire.civilization}</p>
       <label>
         Seat
@@ -519,7 +539,19 @@ function renderEmpires() {
       <h4>Totals</h4>
       <p>Nodes — P:${totals.production} R:${totals.research} C:${totals.culture} CTRL:${totals.control}</p>
       <p>Defense Strength: ${defense}</p>
-      <p class="muted">Formula: (${empire.starbases} × 10) + (${empire.weaponLevel} × 2) + (${empire.shieldLevel} × 2) + (${totals.control} CTRL)</p>
+      <p class="muted">Per-planet formula: P + R + CTRL + 1 if starbase.</p>
+      <div class="muted">
+        ${getSystemsForEmpire(empire.id)
+          .map((system) => {
+            const value =
+              system.production +
+              system.research +
+              system.control +
+              (system.hasStarbase ? 1 : 0);
+            return `${system.name}: ${value}`;
+          })
+          .join('<br />')}
+      </div>
       <div class="button-row">
         <button data-active="${empire.id}" class="primary">Set Active</button>
       </div>
@@ -551,6 +583,17 @@ function renderEmpires() {
       logEntry(`${empire.name} is now controlled by a new seat.`);
     });
 
+    const nameInput = card.querySelector('input[data-field="name"]');
+    nameInput.addEventListener('change', (event) => {
+      const newName = event.target.value.trim();
+      if (!newName) {
+        event.target.value = empire.name;
+        return;
+      }
+      updateEmpire(empire.id, { name: newName });
+      logEntry(`Empire renamed to ${newName}.`);
+    });
+
     const activeButton = card.querySelector('button[data-active]');
     activeButton.addEventListener('click', () => setActiveEmpire(empire.id));
 
@@ -574,6 +617,21 @@ function renderSystemForm() {
   const controlInput = document.createElement('input');
   controlInput.type = 'number';
   controlInput.placeholder = 'Control';
+
+  const quadrantSelect = document.createElement('select');
+  QUADRANTS.forEach((quadrant) => {
+    const option = document.createElement('option');
+    option.value = quadrant;
+    option.textContent = quadrant;
+    quadrantSelect.appendChild(option);
+  });
+
+  const starbaseLabel = document.createElement('label');
+  starbaseLabel.className = 'checkbox-label';
+  starbaseLabel.innerHTML = `
+    <input type="checkbox" id="system-starbase" />
+    Starbase
+  `;
 
   const ownerSelect = document.createElement('select');
   const unownedOption = document.createElement('option');
@@ -600,13 +658,17 @@ function renderSystemForm() {
       research: Number(researchInput.value) || 0,
       culture: Number(cultureInput.value) || 0,
       control: Number(controlInput.value) || 0,
-      ownerEmpireId: ownerSelect.value || null
+      ownerEmpireId: ownerSelect.value || null,
+      hasStarbase: starbaseLabel.querySelector('input').checked,
+      quadrant: quadrantSelect.value
     });
     nameInput.value = '';
     productionInput.value = '';
     researchInput.value = '';
     cultureInput.value = '';
     controlInput.value = '';
+    quadrantSelect.value = 'Alpha';
+    starbaseLabel.querySelector('input').checked = false;
   });
 
   elements.systemForm.append(
@@ -615,6 +677,8 @@ function renderSystemForm() {
     researchInput,
     cultureInput,
     controlInput,
+    quadrantSelect,
+    starbaseLabel,
     ownerSelect,
     addButton
   );
@@ -637,6 +701,8 @@ function renderSystems() {
         <th>R</th>
         <th>C</th>
         <th>CTRL</th>
+        <th>Quadrant</th>
+        <th>Starbase</th>
         <th>Owner</th>
       </tr>
     </thead>
@@ -645,12 +711,34 @@ function renderSystems() {
 
   state.systems.forEach((system) => {
     const row = document.createElement('tr');
+    const ownerColor = system.ownerEmpireId
+      ? getEmpireColor(system.ownerEmpireId)
+      : null;
+    if (ownerColor) {
+      row.style.background = hexToRgba(ownerColor, 0.15);
+    }
     row.innerHTML = `
       <td><input value="${system.name}" /></td>
       <td><input type="number" value="${system.production}" /></td>
       <td><input type="number" value="${system.research}" /></td>
       <td><input type="number" value="${system.culture}" /></td>
       <td><input type="number" value="${system.control}" /></td>
+      <td>
+        <select data-field="quadrant">
+          ${QUADRANTS.map(
+            (quadrant) => `
+            <option value="${quadrant}" ${
+              quadrant === system.quadrant ? 'selected' : ''
+            }>${quadrant}</option>
+          `
+          ).join('')}
+        </select>
+      </td>
+      <td>
+        <input type="checkbox" data-field="starbase" ${
+          system.hasStarbase ? 'checked' : ''
+        } />
+      </td>
       <td>
         <select>
           <option value="">Unowned</option>
@@ -667,7 +755,7 @@ function renderSystems() {
     `;
 
     const inputs = row.querySelectorAll('input');
-    const select = row.querySelector('select');
+    const selects = row.querySelectorAll('select');
 
     inputs[0].addEventListener('change', (event) => {
       updateSystem(system.id, { name: event.target.value.trim() || system.name });
@@ -684,7 +772,18 @@ function renderSystems() {
     inputs[4].addEventListener('change', (event) => {
       updateSystem(system.id, { control: Number(event.target.value) || 0 });
     });
-    select.addEventListener('change', (event) => {
+    const quadrantSelect = row.querySelector('select[data-field="quadrant"]');
+    quadrantSelect.addEventListener('change', (event) => {
+      updateSystem(system.id, { quadrant: event.target.value });
+    });
+
+    const starbaseInput = row.querySelector('input[data-field="starbase"]');
+    starbaseInput.addEventListener('change', (event) => {
+      updateSystem(system.id, { hasStarbase: event.target.checked });
+    });
+
+    const ownerSelectInput = selects[selects.length - 1];
+    ownerSelectInput.addEventListener('change', (event) => {
       updateSystem(system.id, { ownerEmpireId: event.target.value || null });
     });
 
