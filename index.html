@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Star Trek Ascendancy Companion</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="starfield"></div>
+    <header class="app-header">
+      <div class="brand">
+        <span class="badge">UFP</span>
+        <div>
+          <h1>Star Trek Ascendancy Companion</h1>
+          <p class="subtitle">Command, calculate, and chronicle your journey across the galaxy.</p>
+        </div>
+      </div>
+      <nav class="command-nav">
+        <button class="nav-btn" data-target="overview">Overview</button>
+        <button class="nav-btn" data-target="factions">Factions</button>
+        <button class="nav-btn" data-target="turn">Turn Ops</button>
+        <button class="nav-btn" data-target="tech">Tech Grid</button>
+        <button class="nav-btn" data-target="log">Captain's Log</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="overview" class="panel hero">
+        <div>
+          <h2>Mission Control</h2>
+          <p>
+            Keep every decision aligned with the Prime Directive. The companion app organizes strategic
+            priorities, automates resource math, and keeps the table in sync.
+          </p>
+          <div class="quick-actions">
+            <button class="cta" id="init-turn">Start New Round</button>
+            <button class="ghost" id="save-state">Snapshot Game State</button>
+          </div>
+        </div>
+        <div class="status-grid">
+          <div class="status-card">
+            <h3>Current Round</h3>
+            <p class="status-value" id="round-value">4</p>
+            <span class="status-label">Sector expansion phase</span>
+          </div>
+          <div class="status-card">
+            <h3>Initiative</h3>
+            <p class="status-value" id="initiative-value">Federation</p>
+            <span class="status-label">Next: Klingon</span>
+          </div>
+          <div class="status-card">
+            <h3>Galactic Tension</h3>
+            <p class="status-value" id="tension-value">Moderate</p>
+            <span class="status-label">3 unresolved conflicts</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="factions" class="panel">
+        <header class="panel-header">
+          <h2>Faction Command Center</h2>
+          <p>Track resources, production, and flagship upgrades for every empire.</p>
+        </header>
+        <div class="faction-grid">
+          <article class="faction-card">
+            <div class="faction-header">
+              <h3>United Federation of Planets</h3>
+              <span class="pill">Diplomacy</span>
+            </div>
+            <ul>
+              <li>Energy: <strong id="fed-energy">8</strong></li>
+              <li>Production: <strong id="fed-production">6</strong></li>
+              <li>Research: <strong id="fed-research">5</strong></li>
+            </ul>
+            <button class="ghost" data-faction="federation">Adjust Resources</button>
+          </article>
+          <article class="faction-card">
+            <div class="faction-header">
+              <h3>Klingon Empire</h3>
+              <span class="pill">Aggression</span>
+            </div>
+            <ul>
+              <li>Energy: <strong id="klingon-energy">7</strong></li>
+              <li>Production: <strong id="klingon-production">7</strong></li>
+              <li>Research: <strong id="klingon-research">3</strong></li>
+            </ul>
+            <button class="ghost" data-faction="klingon">Adjust Resources</button>
+          </article>
+          <article class="faction-card">
+            <div class="faction-header">
+              <h3>Romulan Star Empire</h3>
+              <span class="pill">Intrigue</span>
+            </div>
+            <ul>
+              <li>Energy: <strong id="romulan-energy">6</strong></li>
+              <li>Production: <strong id="romulan-production">5</strong></li>
+              <li>Research: <strong id="romulan-research">6</strong></li>
+            </ul>
+            <button class="ghost" data-faction="romulan">Adjust Resources</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="turn" class="panel">
+        <header class="panel-header">
+          <h2>Turn Operations</h2>
+          <p>Guide the table through each phase with automated prompts and dice utilities.</p>
+        </header>
+        <div class="turn-grid">
+          <div class="turn-card">
+            <h3>Phase Tracker</h3>
+            <ol id="phase-list">
+              <li class="active">Command Phase</li>
+              <li>Movement Phase</li>
+              <li>Research Phase</li>
+              <li>Production Phase</li>
+              <li>End Phase</li>
+            </ol>
+            <button class="cta" id="advance-phase">Advance Phase</button>
+          </div>
+          <div class="turn-card">
+            <h3>Combat Assistant</h3>
+            <p>Roll attack and defense dice with tension-modifiers.</p>
+            <div class="dice-row">
+              <input id="dice-count" type="number" min="1" max="10" value="3" />
+              <button class="ghost" id="roll-dice">Roll Dice</button>
+            </div>
+            <div class="dice-results" id="dice-results">Awaiting orders...</div>
+          </div>
+          <div class="turn-card">
+            <h3>Resource Calculator</h3>
+            <div class="calc">
+              <label>
+                New Systems
+                <input id="systems" type="number" min="0" value="2" />
+              </label>
+              <label>
+                Production Bonus
+                <input id="bonus" type="number" min="0" value="1" />
+              </label>
+            </div>
+            <div class="calc-total">Projected Production: <strong id="production-total">9</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tech" class="panel">
+        <header class="panel-header">
+          <h2>Technology Grid</h2>
+          <p>Plan your research path and unlock synergy between tech cards.</p>
+        </header>
+        <div class="tech-grid">
+          <div class="tech-card">
+            <h3>Starfleet Engineering</h3>
+            <p>Boost flagship shields and unlock advanced command protocols.</p>
+            <button class="ghost" data-tech="engineering">Queue Research</button>
+          </div>
+          <div class="tech-card">
+            <h3>Disruptor Arrays</h3>
+            <p>Increase attack dice and unlock ambush tactics.</p>
+            <button class="ghost" data-tech="disruptor">Queue Research</button>
+          </div>
+          <div class="tech-card">
+            <h3>Cloaking Matrix</h3>
+            <p>Reduce detection ranges and surprise enemy fleets.</p>
+            <button class="ghost" data-tech="cloak">Queue Research</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="log" class="panel">
+        <header class="panel-header">
+          <h2>Captain's Log</h2>
+          <p>Record key events and recall critical decisions on demand.</p>
+        </header>
+        <div class="log-layout">
+          <div>
+            <textarea id="log-entry" placeholder="Record diplomatic agreements, conflicts, or discoveries..."></textarea>
+            <div class="quick-actions">
+              <button class="cta" id="add-log">Add Entry</button>
+              <button class="ghost" id="clear-log">Clear Log</button>
+            </div>
+          </div>
+          <ul id="log-list" class="log-list">
+            <li class="log-item">Stardate 2401.2 — Federation brokered peace on Rigel VII.</li>
+            <li class="log-item">Stardate 2401.4 — Klingon fleet encountered unknown anomaly.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Designed for tabletop commanders. Engage!</p>
+    </footer>
+
+    <dialog id="resource-dialog">
+      <form method="dialog" class="dialog-content">
+        <h3 id="dialog-title">Adjust Resources</h3>
+        <label>
+          Energy
+          <input id="dialog-energy" type="number" min="0" />
+        </label>
+        <label>
+          Production
+          <input id="dialog-production" type="number" min="0" />
+        </label>
+        <label>
+          Research
+          <input id="dialog-research" type="number" min="0" />
+        </label>
+        <menu>
+          <button value="cancel" class="ghost">Cancel</button>
+          <button value="confirm" class="cta">Save</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
