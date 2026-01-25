@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+ascendancy_companion/state.json
+build/
+dist/
+*.spec

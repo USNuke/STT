@@ -1,0 +1,1 @@
+"""Ascendancy Companion desktop app."""

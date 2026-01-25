@@ -1,0 +1,17 @@
+Search attempt for "Star_Trek_Ascendancy_Unoffical_complete pdf" via DuckDuckGo.
+
+Command:
+python - <<'PY'
+import urllib.parse
+import urllib.request
+
+query = "Star_Trek_Ascendancy_Unoffical_complete pdf"
+url = "https://duckduckgo.com/html/?q=" + urllib.parse.quote(query)
+print("Query URL:", url)
+with urllib.request.urlopen(url, timeout=20) as resp:
+    html = resp.read().decode("utf-8", errors="ignore")
+print("Downloaded bytes:", len(html))
+PY
+
+Result:
+Tunnel connection failed: 403 Forbidden
