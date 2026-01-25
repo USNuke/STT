@@ -37,6 +37,7 @@ const defaultState = () => ({
   empires: [],
   systems: [],
   activeEmpireId: null,
+  playerSeatId: 'seat-1',
   logs: []
 });
 
@@ -59,6 +60,8 @@ const elements = {
   empires: document.getElementById('empires'),
   systemForm: document.getElementById('system-form'),
   systems: document.getElementById('systems'),
+  playerSeat: document.getElementById('player-seat'),
+  playerSummary: document.getElementById('player-summary'),
   openEarnings: document.getElementById('open-earnings'),
   earningsModal: document.getElementById('earnings-modal'),
   earningsBreakdown: document.getElementById('earnings-breakdown'),
@@ -133,6 +136,9 @@ function normalizeState(imported) {
 
   normalized.activeEmpireId =
     imported.activeEmpireId || normalized.empires[0]?.id || null;
+
+  normalized.playerSeatId =
+    imported.playerSeatId || normalized.seats[0]?.id || base.seats[0].id;
 
   normalized.logs = imported.logs || [];
 
@@ -690,11 +696,95 @@ function renderAll() {
   renderActiveEmpire();
   renderInitiative();
   renderSeats();
+  renderPlayerInterface();
   renderEmpireForm();
   renderEmpires();
   renderSystemForm();
   renderSystems();
   renderLogs();
+}
+
+function renderPlayerInterface() {
+  elements.playerSeat.innerHTML = '';
+  state.seats.forEach((seat) => {
+    const option = document.createElement('option');
+    option.value = seat.id;
+    option.textContent = seat.name;
+    if (seat.id === state.playerSeatId) {
+      option.selected = true;
+    }
+    elements.playerSeat.appendChild(option);
+  });
+
+  const seat = state.seats.find((item) => item.id === state.playerSeatId);
+  const seatEmpires = state.empires.filter(
+    (empire) => empire.seatId === state.playerSeatId
+  );
+  const totals = seatEmpires.reduce(
+    (acc, empire) => ({
+      production: acc.production + empire.resources.production,
+      research: acc.research + empire.resources.research,
+      culture: acc.culture + empire.resources.culture,
+      dollars: acc.dollars + empire.resources.dollars
+    }),
+    { production: 0, research: 0, culture: 0, dollars: 0 }
+  );
+
+  const nodes = seatEmpires.reduce(
+    (acc, empire) => {
+      const empireTotals = calculateTotals(empire.id);
+      return {
+        production: acc.production + empireTotals.production,
+        research: acc.research + empireTotals.research,
+        culture: acc.culture + empireTotals.culture,
+        control: acc.control + empireTotals.control
+      };
+    },
+    { production: 0, research: 0, culture: 0, control: 0 }
+  );
+
+  elements.playerSummary.innerHTML = '';
+
+  const seatCard = document.createElement('div');
+  seatCard.className = 'card';
+  seatCard.innerHTML = `
+    <h3>${seat ? seat.name : 'Seat'}</h3>
+    <p class="muted">Controlled Empires: ${seatEmpires.length || 0}</p>
+    <div>
+      <span class="summary-pill">P ${totals.production}</span>
+      <span class="summary-pill">R ${totals.research}</span>
+      <span class="summary-pill">C ${totals.culture}</span>
+      <span class="summary-pill">$ ${totals.dollars}</span>
+    </div>
+    <p class="muted">Total Nodes — P:${nodes.production} R:${nodes.research} C:${nodes.culture} CTRL:${nodes.control}</p>
+  `;
+
+  const empireCard = document.createElement('div');
+  empireCard.className = 'card';
+  empireCard.innerHTML = `
+    <h3>Empire Details</h3>
+    ${
+      seatEmpires.length === 0
+        ? '<p class="muted">No empires assigned to this seat yet.</p>'
+        : seatEmpires
+            .map((empire) => {
+              const systemCount = getSystemsForEmpire(empire.id).length;
+              return `
+                <div>
+                  <strong>${empire.name}</strong> (${empire.civilization})
+                  <ul class="summary-list">
+                    <li>Systems: ${systemCount}</li>
+                    <li>Ascendancy Tokens: ${empire.ascendancyTokens}</li>
+                    <li>Command Tokens: ${empire.commandTokens}</li>
+                  </ul>
+                </div>
+              `;
+            })
+            .join('')
+    }
+  `;
+
+  elements.playerSummary.append(seatCard, empireCard);
 }
 
 function openEarningsModal() {
@@ -799,6 +889,12 @@ function copyLogToClipboard() {
 function attachEventListeners() {
   elements.activeEmpire.addEventListener('change', (event) => {
     setActiveEmpire(event.target.value || null);
+  });
+
+  elements.playerSeat.addEventListener('change', (event) => {
+    state.playerSeatId = event.target.value;
+    saveState();
+    renderPlayerInterface();
   });
 
   elements.nextRound.addEventListener('click', () => {

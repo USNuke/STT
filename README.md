@@ -20,6 +20,7 @@ The app focuses on bookkeeping: seats, empires, systems, resources, phases, and 
 - Empire tracking with civilization presets and active empire theming.
 - Star system tracking with editable node values and ownership.
 - Round and phase controls with initiative ordering.
+- Seat-focused player interface summary for quick reference.
 - Earnings calculation popup for Building phase.
 - Persistent state via localStorage with JSON import/export.
 - Append-only log with clipboard and export support.

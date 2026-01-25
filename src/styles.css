@@ -207,3 +207,18 @@ button:hover {
   width: 100%;
   box-sizing: border-box;
 }
+
+.summary-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.summary-pill {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #1f2740;
+  border: 1px solid #2d3758;
+  margin-right: 6px;
+  font-size: 12px;
+}
