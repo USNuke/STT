@@ -27,6 +27,7 @@ const CIVILIZATION_COLORS = {
 const PHASES = ['Initiative', 'Command', 'Building', 'Recharge'];
 const QUADRANTS = ['Alpha', 'Beta'];
 const TRADE_TYPES = ['Production', 'Research', 'Culture'];
+const OWNER_STATUSES = ['None', 'Pre-War', 'Warp 1', 'Warp 2', 'Warp 3'];
 
 const defaultState = () => ({
   round: 1,
@@ -161,7 +162,10 @@ function normalizeState(imported) {
     control: Number(system.control) || 0,
     ownerEmpireId: system.ownerEmpireId || null,
     hasStarbase: Boolean(system.hasStarbase),
-    quadrant: QUADRANTS.includes(system.quadrant) ? system.quadrant : 'Alpha'
+    quadrant: QUADRANTS.includes(system.quadrant) ? system.quadrant : 'Alpha',
+    ownerStatus: OWNER_STATUSES.includes(system.ownerStatus)
+      ? system.ownerStatus
+      : 'None'
   }));
 
   normalized.activeEmpireId =
@@ -177,10 +181,14 @@ function normalizeState(imported) {
       toType: agreement.toType === 'npc' ? 'npc' : 'seat',
       toSeatId: agreement.toSeatId || normalized.seats[0]?.id,
       toNpcName: agreement.toNpcName || 'NPC',
-      resourceType: TRADE_TYPES.includes(agreement.resourceType)
-        ? agreement.resourceType
+      giveType: TRADE_TYPES.includes(agreement.giveType)
+        ? agreement.giveType
         : 'Production',
-      amount: Math.max(0, Number(agreement.amount) || 0)
+      giveAmount: Math.max(0, Number(agreement.giveAmount) || 0),
+      receiveType: TRADE_TYPES.includes(agreement.receiveType)
+        ? agreement.receiveType
+        : 'Production',
+      receiveAmount: Math.max(0, Number(agreement.receiveAmount) || 0)
     })
   );
 
@@ -380,10 +388,12 @@ function calculateTradeTotals(seatId) {
 
   state.tradeAgreements.forEach((agreement) => {
     if (agreement.fromSeatId === seatId) {
-      totals.outgoing[agreement.resourceType] += agreement.amount;
+      totals.outgoing[agreement.giveType] += agreement.giveAmount;
+      totals.incoming[agreement.receiveType] += agreement.receiveAmount;
     }
     if (agreement.toType === 'seat' && agreement.toSeatId === seatId) {
-      totals.incoming[agreement.resourceType] += agreement.amount;
+      totals.outgoing[agreement.receiveType] += agreement.receiveAmount;
+      totals.incoming[agreement.giveType] += agreement.giveAmount;
     }
   });
 
@@ -703,6 +713,14 @@ function renderSystemForm() {
     quadrantSelect.appendChild(option);
   });
 
+  const ownerStatusSelect = document.createElement('select');
+  OWNER_STATUSES.forEach((status) => {
+    const option = document.createElement('option');
+    option.value = status;
+    option.textContent = status;
+    ownerStatusSelect.appendChild(option);
+  });
+
   const starbaseLabel = document.createElement('label');
   starbaseLabel.className = 'checkbox-label';
   starbaseLabel.innerHTML = `
@@ -737,7 +755,8 @@ function renderSystemForm() {
       control: Number(controlInput.value) || 0,
       ownerEmpireId: ownerSelect.value || null,
       hasStarbase: starbaseLabel.querySelector('input').checked,
-      quadrant: quadrantSelect.value
+      quadrant: quadrantSelect.value,
+      ownerStatus: ownerStatusSelect.value
     });
     nameInput.value = '';
     productionInput.value = '';
@@ -745,6 +764,7 @@ function renderSystemForm() {
     cultureInput.value = '';
     controlInput.value = '';
     quadrantSelect.value = 'Alpha';
+    ownerStatusSelect.value = 'None';
     starbaseLabel.querySelector('input').checked = false;
   });
 
@@ -755,6 +775,7 @@ function renderSystemForm() {
     cultureInput,
     controlInput,
     quadrantSelect,
+    ownerStatusSelect,
     starbaseLabel,
     ownerSelect,
     addButton
@@ -794,18 +815,31 @@ function renderTradeForm() {
   toNpcInput.placeholder = 'NPC name';
   toNpcInput.value = 'NPC';
 
-  const resourceSelect = document.createElement('select');
+  const giveResourceSelect = document.createElement('select');
   TRADE_TYPES.forEach((resource) => {
     const option = document.createElement('option');
     option.value = resource;
-    option.textContent = resource;
-    resourceSelect.appendChild(option);
+    option.textContent = `Give ${resource}`;
+    giveResourceSelect.appendChild(option);
   });
 
-  const amountInput = document.createElement('input');
-  amountInput.type = 'number';
-  amountInput.min = '0';
-  amountInput.placeholder = 'Amount';
+  const giveAmountInput = document.createElement('input');
+  giveAmountInput.type = 'number';
+  giveAmountInput.min = '0';
+  giveAmountInput.placeholder = 'Give amount';
+
+  const receiveResourceSelect = document.createElement('select');
+  TRADE_TYPES.forEach((resource) => {
+    const option = document.createElement('option');
+    option.value = resource;
+    option.textContent = `Receive ${resource}`;
+    receiveResourceSelect.appendChild(option);
+  });
+
+  const receiveAmountInput = document.createElement('input');
+  receiveAmountInput.type = 'number';
+  receiveAmountInput.min = '0';
+  receiveAmountInput.placeholder = 'Receive amount';
 
   const addButton = document.createElement('button');
   addButton.className = 'primary';
@@ -821,8 +855,9 @@ function renderTradeForm() {
   updateTradeVisibility();
 
   addButton.addEventListener('click', () => {
-    const amount = Number(amountInput.value) || 0;
-    if (amount <= 0) return;
+    const giveAmount = Number(giveAmountInput.value) || 0;
+    const receiveAmount = Number(receiveAmountInput.value) || 0;
+    if (giveAmount <= 0 && receiveAmount <= 0) return;
     pushHistory();
     const agreement = {
       id: `trade-${Date.now()}`,
@@ -830,15 +865,18 @@ function renderTradeForm() {
       toType: toTypeSelect.value,
       toSeatId: toSeatSelect.value,
       toNpcName: toNpcInput.value.trim() || 'NPC',
-      resourceType: resourceSelect.value,
-      amount
+      giveType: giveResourceSelect.value,
+      giveAmount,
+      receiveType: receiveResourceSelect.value,
+      receiveAmount
     };
     state.tradeAgreements.push(agreement);
     saveState();
     renderTradeAgreements();
     renderPlayerInterface();
     logEntry('Trade agreement added.');
-    amountInput.value = '';
+    giveAmountInput.value = '';
+    receiveAmountInput.value = '';
   });
 
   elements.tradeForm.append(
@@ -846,8 +884,10 @@ function renderTradeForm() {
     toTypeSelect,
     toSeatSelect,
     toNpcInput,
-    resourceSelect,
-    amountInput,
+    giveResourceSelect,
+    giveAmountInput,
+    receiveResourceSelect,
+    receiveAmountInput,
     addButton
   );
 }
@@ -873,7 +913,8 @@ function renderTradeAgreements() {
         : toSeat?.name || 'Player';
     row.innerHTML = `
       <strong>${fromSeat?.name || 'Player'}</strong> → ${targetLabel}
-      <span class="summary-pill">${agreement.resourceType}: ${agreement.amount}</span>
+      <span class="summary-pill">Give ${agreement.giveType}: ${agreement.giveAmount}</span>
+      <span class="summary-pill">Receive ${agreement.receiveType}: ${agreement.receiveAmount}</span>
       <button data-delete="${agreement.id}" class="danger">Revoke</button>
     `;
     row.querySelector('button').addEventListener('click', () => {
@@ -908,6 +949,7 @@ function renderSystems() {
         <th>C</th>
         <th>CTRL</th>
         <th>Quadrant</th>
+        <th>Owner Status</th>
         <th>Starbase</th>
         <th>Owner</th>
       </tr>
@@ -936,6 +978,17 @@ function renderSystems() {
             <option value="${quadrant}" ${
               quadrant === system.quadrant ? 'selected' : ''
             }>${quadrant}</option>
+          `
+          ).join('')}
+        </select>
+      </td>
+      <td>
+        <select data-field="owner-status">
+          ${OWNER_STATUSES.map(
+            (status) => `
+            <option value="${status}" ${
+              status === system.ownerStatus ? 'selected' : ''
+            }>${status}</option>
           `
           ).join('')}
         </select>
@@ -981,6 +1034,11 @@ function renderSystems() {
     const quadrantSelect = row.querySelector('select[data-field="quadrant"]');
     quadrantSelect.addEventListener('change', (event) => {
       updateSystem(system.id, { quadrant: event.target.value });
+    });
+
+    const ownerStatusSelect = row.querySelector('select[data-field="owner-status"]');
+    ownerStatusSelect.addEventListener('change', (event) => {
+      updateSystem(system.id, { ownerStatus: event.target.value });
     });
 
     const starbaseInput = row.querySelector('input[data-field="starbase"]');
@@ -1152,7 +1210,7 @@ function openEarningsModal() {
           agreement.toType === 'npc'
             ? agreement.toNpcName
             : toSeat?.name || 'Player';
-        return `${fromSeat?.name || 'Player'} → ${targetLabel}: ${agreement.resourceType} ${agreement.amount}`;
+        return `${fromSeat?.name || 'Player'} → ${targetLabel}: Give ${agreement.giveType} ${agreement.giveAmount}, Receive ${agreement.receiveType} ${agreement.receiveAmount}`;
       })
       .join('<br />');
   }
