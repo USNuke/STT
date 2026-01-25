@@ -1,13 +1,18 @@
 :root {
   color-scheme: dark;
-  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-family: "Segoe UI", "Arial Narrow", Arial, sans-serif;
   background: #0b0f1a;
   color: #f4f6ff;
+  --accent: #3b6ff5;
+  --accent-soft: rgba(59, 111, 245, 0.2);
+  --lcars-orange: #ff9f1c;
+  --lcars-gold: #ffc857;
 }
 
 body {
   margin: 0;
   background: #0b0f1a;
+  font-size: 16px;
 }
 
 .header {
@@ -15,8 +20,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 24px 32px;
-  background: linear-gradient(135deg, #1f2a44, #0b0f1a);
-  border-bottom: 1px solid #223;
+  background: linear-gradient(120deg, var(--accent), #101828 45%, #0b0f1a);
+  border-bottom: 3px solid var(--lcars-orange);
 }
 
 .header-controls {
@@ -40,9 +45,19 @@ main {
 .panel {
   background: #141a2b;
   border: 1px solid #1f2740;
-  border-radius: 12px;
+  border-radius: 18px;
   padding: 20px;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+}
+
+.panel h2 {
+  margin-top: 0;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, var(--lcars-orange), var(--accent));
+  color: #0b0f1a;
+  border-radius: 12px;
+  font-size: 20px;
+  letter-spacing: 0.5px;
 }
 
 .grid {
@@ -59,7 +74,7 @@ main {
 }
 
 .metric {
-  font-size: 20px;
+  font-size: 22px;
   margin: 0 0 12px;
 }
 
@@ -69,14 +84,15 @@ input {
   background: #1f2740;
   color: #f4f6ff;
   border: 1px solid #2d3758;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 15px;
 }
 
 button.primary {
-  background: #3b6ff5;
-  border-color: #3b6ff5;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 button.danger {
@@ -86,6 +102,13 @@ button.danger {
 
 button:hover {
   filter: brightness(1.1);
+}
+
+button:focus,
+select:focus,
+input:focus {
+  outline: 2px solid var(--lcars-gold);
+  outline-offset: 2px;
 }
 
 .form-row {
@@ -98,7 +121,7 @@ button:hover {
 .card {
   background: #1a2240;
   border: 1px solid #2d3758;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 16px;
 }
 
@@ -123,8 +146,8 @@ button:hover {
   overflow: auto;
   background: #0b0f1a;
   padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #1f2740;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
 }
 
 .log-entry {
@@ -137,7 +160,7 @@ button:hover {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid #f4f6ff;
+  border: 2px solid var(--lcars-gold);
 }
 
 .file-input {
@@ -168,7 +191,7 @@ button:hover {
 .modal-card {
   background: #141a2b;
   border: 1px solid #2d3758;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
   width: min(640px, 90vw);
 }
@@ -215,10 +238,10 @@ button:hover {
 
 .summary-pill {
   display: inline-block;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: 999px;
-  background: #1f2740;
-  border: 1px solid #2d3758;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
   margin-right: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }

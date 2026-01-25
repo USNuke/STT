@@ -12,14 +12,14 @@ const CIVILIZATIONS = [
 ];
 
 const CIVILIZATION_COLORS = {
-  Federation: '#3b6ff5',
-  Klingon: '#c7353f',
+  Federation: '#1f3b8f',
+  Klingon: '#c0392b',
   Romulan: '#2ecc71',
   Cardassian: '#d08c2a',
   Ferengi: '#f1c40f',
-  Dominion: '#8e44ad',
+  Dominion: '#7d3fbf',
   Borg: '#2f3542',
-  Andorian: '#3498db',
+  Andorian: '#6cc4ff',
   Vulcan: '#27ae60',
   'Custom / Other': '#95a5a6'
 };
@@ -335,9 +335,27 @@ function renderActiveEmpire() {
     : '#2d3758';
 
   document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--accent-soft', hexToRgba(color, 0.2));
   elements.accentPreview.style.background = color;
   elements.accentPreview.style.boxShadow = `0 0 12px ${color}`;
   elements.activeEmpire.style.borderColor = color;
+}
+
+function hexToRgba(hex, alpha) {
+  const normalized = hex.replace('#', '');
+  const bigint = parseInt(
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : normalized,
+    16
+  );
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function renderInitiative() {
