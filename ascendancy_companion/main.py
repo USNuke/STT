@@ -1,5 +1,5 @@
 import json
-import os
+import random
 import sys
 import uuid
 from dataclasses import dataclass, field
@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
-
 
 CIVS = [
     "Federation",
@@ -19,19 +18,24 @@ CIVS = [
     "Borg",
     "Andorian",
     "Vulcan",
-    "Custom/Other",
+    "Custom / Other",
 ]
 
+DEFAULT_SEATS = ["Jason", "Christine", "Jacob"]
 PHASES = ["Initiative", "Command", "Building", "Recharge"]
 
 
 @dataclass
 class Empire:
     id: str
-    civ: str
     name: str
-    tokens: dict
+    civilization: str
+    ascendancy_tokens: int
+    command_tokens: int
     resources: dict
+    starbases: int
+    weapon_level: int
+    shield_level: int
 
 
 @dataclass
@@ -57,27 +61,31 @@ class AppState:
     systems: list[SystemRecord]
     initiative_by_round: dict
     log_entries: list[str]
+    active_empire_id: str | None
 
 
 def make_default_state() -> AppState:
-    seats = []
-    for index in range(3):
+    seats: list[Seat] = []
+    active_empire_id: str | None = None
+
+    for index, seat_name in enumerate(DEFAULT_SEATS):
         seat_id = str(uuid.uuid4())
         empire_id = str(uuid.uuid4())
-        seat = Seat(
-            id=seat_id,
-            name=f"Seat {index + 1}",
-            empires=[
-                Empire(
-                    id=empire_id,
-                    civ=CIVS[index % len(CIVS)],
-                    name=f"Empire {chr(65 + index)}",
-                    tokens={"ascendancy": 0, "command": 0},
-                    resources={"dollars": 0, "production": 0, "research": 0, "culture": 0},
-                )
-            ],
+        empire = Empire(
+            id=empire_id,
+            name=f"Empire {chr(65 + index)}",
+            civilization=CIVS[index % len(CIVS)],
+            ascendancy_tokens=0,
+            command_tokens=0,
+            resources={"production": 0, "research": 0, "culture": 0, "dollars": 0},
+            starbases=0,
+            weapon_level=0,
+            shield_level=0,
         )
-        seats.append(seat)
+        seats.append(Seat(id=seat_id, name=seat_name, empires=[empire]))
+        if active_empire_id is None:
+            active_empire_id = empire_id
+
     return AppState(
         round_number=1,
         phase_index=0,
@@ -85,6 +93,7 @@ def make_default_state() -> AppState:
         systems=[],
         initiative_by_round={},
         log_entries=[],
+        active_empire_id=active_empire_id,
     )
 
 
@@ -94,6 +103,7 @@ def state_to_dict(state: AppState) -> dict:
         "phase_index": state.phase_index,
         "initiative_by_round": state.initiative_by_round,
         "log_entries": state.log_entries,
+        "active_empire_id": state.active_empire_id,
         "seats": [
             {
                 "id": seat.id,
@@ -101,10 +111,14 @@ def state_to_dict(state: AppState) -> dict:
                 "empires": [
                     {
                         "id": empire.id,
-                        "civ": empire.civ,
                         "name": empire.name,
-                        "tokens": empire.tokens,
+                        "civilization": empire.civilization,
+                        "ascendancy_tokens": empire.ascendancy_tokens,
+                        "command_tokens": empire.command_tokens,
                         "resources": empire.resources,
+                        "starbases": empire.starbases,
+                        "weapon_level": empire.weapon_level,
+                        "shield_level": empire.shield_level,
                     }
                     for empire in seat.empires
                 ],
@@ -123,23 +137,30 @@ def state_to_dict(state: AppState) -> dict:
     }
 
 
+def normalize_empire(data: dict) -> Empire:
+    resources = data.get("resources", {})
+    return Empire(
+        id=data.get("id", str(uuid.uuid4())),
+        name=data.get("name", "Empire"),
+        civilization=data.get("civilization", "Custom / Other"),
+        ascendancy_tokens=int(data.get("ascendancy_tokens", 0)),
+        command_tokens=int(data.get("command_tokens", 0)),
+        resources={
+            "production": int(resources.get("production", 0)),
+            "research": int(resources.get("research", 0)),
+            "culture": int(resources.get("culture", 0)),
+            "dollars": int(resources.get("dollars", 0)),
+        },
+        starbases=int(data.get("starbases", 0)),
+        weapon_level=int(data.get("weapon_level", 0)),
+        shield_level=int(data.get("shield_level", 0)),
+    )
+
+
 def dict_to_state(payload: dict) -> AppState:
     seats = []
     for seat_data in payload.get("seats", []):
-        empires = []
-        for empire_data in seat_data.get("empires", []):
-            empires.append(
-                Empire(
-                    id=empire_data.get("id", str(uuid.uuid4())),
-                    civ=empire_data.get("civ", "Custom/Other"),
-                    name=empire_data.get("name", "Empire"),
-                    tokens=empire_data.get("tokens", {"ascendancy": 0, "command": 0}),
-                    resources=empire_data.get(
-                        "resources",
-                        {"dollars": 0, "production": 0, "research": 0, "culture": 0},
-                    ),
-                )
-            )
+        empires = [normalize_empire(empire_data) for empire_data in seat_data.get("empires", [])]
         seats.append(
             Seat(
                 id=seat_data.get("id", str(uuid.uuid4())),
@@ -154,18 +175,24 @@ def dict_to_state(payload: dict) -> AppState:
                 id=system_data.get("id", str(uuid.uuid4())),
                 name=system_data.get("name", "System"),
                 owner_id=system_data.get("owner_id"),
-                nodes=system_data.get(
-                    "nodes", {"production": 0, "research": 0, "culture": 0, "control": 0}
-                ),
+                nodes={
+                    "production": int(system_data.get("nodes", {}).get("production", 0)),
+                    "research": int(system_data.get("nodes", {}).get("research", 0)),
+                    "culture": int(system_data.get("nodes", {}).get("culture", 0)),
+                    "control": int(system_data.get("nodes", {}).get("control", 0)),
+                },
             )
         )
+
+    active_empire_id = payload.get("active_empire_id")
     return AppState(
-        round_number=payload.get("round_number", 1),
-        phase_index=payload.get("phase_index", 0),
+        round_number=int(payload.get("round_number", 1)),
+        phase_index=int(payload.get("phase_index", 0)) % len(PHASES),
         initiative_by_round=payload.get("initiative_by_round", {}),
         log_entries=payload.get("log_entries", []),
-        seats=seats,
+        seats=seats or make_default_state().seats,
         systems=systems,
+        active_empire_id=active_empire_id,
     )
 
 
@@ -201,12 +228,11 @@ class SystemEditorDialog(QtWidgets.QDialog):
         self.owner_combo = QtWidgets.QComboBox()
         for owner_id, label in owner_options:
             self.owner_combo.addItem(label, owner_id)
-        if system_record.owner_id is None:
-            self.owner_combo.setCurrentIndex(0)
-        else:
-            for i in range(self.owner_combo.count()):
-                if self.owner_combo.itemData(i) == system_record.owner_id:
-                    self.owner_combo.setCurrentIndex(i)
+        self.owner_combo.setCurrentIndex(0)
+        if system_record.owner_id is not None:
+            for index in range(self.owner_combo.count()):
+                if self.owner_combo.itemData(index) == system_record.owner_id:
+                    self.owner_combo.setCurrentIndex(index)
                     break
 
         self.name_input = QtWidgets.QLineEdit(system_record.name)
@@ -269,8 +295,8 @@ class EmpireEditorDialog(QtWidgets.QDialog):
         self.name_input = QtWidgets.QLineEdit(empire.name)
         self.civ_combo = QtWidgets.QComboBox()
         self.civ_combo.addItems(CIVS)
-        if empire.civ in CIVS:
-            self.civ_combo.setCurrentText(empire.civ)
+        if empire.civilization in CIVS:
+            self.civ_combo.setCurrentText(empire.civilization)
         form.addRow("Empire Name", self.name_input)
         form.addRow("Civilization", self.civ_combo)
         layout.addLayout(form)
@@ -287,7 +313,7 @@ class EmpireEditorDialog(QtWidgets.QDialog):
 
     def apply_changes(self) -> Empire:
         self.empire.name = self.name_input.text().strip() or "Empire"
-        self.empire.civ = self.civ_combo.currentText()
+        self.empire.civilization = self.civ_combo.currentText()
         return self.empire
 
 
@@ -295,30 +321,29 @@ class EarningsDialog(QtWidgets.QDialog):
     def __init__(self, parent, summary_rows: list[tuple[str, dict]]):
         super().__init__(parent)
         self.setWindowTitle("Production Earnings")
-        self.summary_rows = summary_rows
         layout = QtWidgets.QVBoxLayout(self)
-        self.table = QtWidgets.QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Empire", "P", "R", "C", "$"])
-        self.table.horizontalHeader().setStretchLastSection(True)
-        layout.addWidget(self.table)
+        table = QtWidgets.QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels(["Empire", "P", "R", "C", "$"])
+        table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(table)
 
         for empire_name, earnings in summary_rows:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(empire_name))
-            self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(earnings["production"])))
-            self.table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(earnings["research"])))
-            self.table.setItem(row, 3, QtWidgets.QTableWidgetItem(str(earnings["culture"])))
-            self.table.setItem(row, 4, QtWidgets.QTableWidgetItem(str(earnings["dollars"])))
+            row = table.rowCount()
+            table.insertRow(row)
+            table.setItem(row, 0, QtWidgets.QTableWidgetItem(empire_name))
+            table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(earnings["production"])))
+            table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(earnings["research"])))
+            table.setItem(row, 3, QtWidgets.QTableWidgetItem(str(earnings["culture"])))
+            table.setItem(row, 4, QtWidgets.QTableWidgetItem(str(earnings["dollars"])))
 
         button_row = QtWidgets.QHBoxLayout()
         button_row.addStretch()
-        self.apply_button = QtWidgets.QPushButton("Apply")
-        self.cancel_button = QtWidgets.QPushButton("Cancel")
-        self.apply_button.clicked.connect(self.accept)
-        self.cancel_button.clicked.connect(self.reject)
-        button_row.addWidget(self.apply_button)
-        button_row.addWidget(self.cancel_button)
+        apply_button = QtWidgets.QPushButton("Apply")
+        cancel_button = QtWidgets.QPushButton("Cancel")
+        apply_button.clicked.connect(self.accept)
+        cancel_button.clicked.connect(self.reject)
+        button_row.addWidget(apply_button)
+        button_row.addWidget(cancel_button)
         layout.addLayout(button_row)
 
 
@@ -326,12 +351,10 @@ class CompanionWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ascendancy Companion")
-        self.resize(1280, 720)
+        self.resize(1300, 780)
         self.app_dir = ensure_app_dir()
         self.state_path = self.app_dir / "state.json"
         self.state = load_state(self.state_path)
-        self.theme_palette = self.build_palette()
-        self.setPalette(self.theme_palette)
 
         self.tabs = QtWidgets.QTabWidget()
         self.setCentralWidget(self.tabs)
@@ -343,12 +366,13 @@ class CompanionWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.play_tab, "Play")
         self.tabs.addTab(self.log_tab, "Log / Save")
 
+        self.build_palette()
         self.build_setup_tab()
         self.build_play_tab()
         self.build_log_tab()
         self.refresh_all()
 
-    def build_palette(self) -> QtGui.QPalette:
+    def build_palette(self) -> None:
         palette = QtGui.QPalette()
         palette.setColor(QtGui.QPalette.Window, QtGui.QColor("#101820"))
         palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("#e6edf3"))
@@ -359,7 +383,7 @@ class CompanionWindow(QtWidgets.QMainWindow):
         palette.setColor(QtGui.QPalette.ButtonText, QtGui.QColor("#f9f9f9"))
         palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor("#3fb6ff"))
         palette.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor("#101820"))
-        return palette
+        self.setPalette(palette)
 
     def build_setup_tab(self) -> None:
         layout = QtWidgets.QVBoxLayout(self.setup_tab)
@@ -395,8 +419,10 @@ class CompanionWindow(QtWidgets.QMainWindow):
     def build_play_tab(self) -> None:
         layout = QtWidgets.QVBoxLayout(self.play_tab)
 
-        self.top_bar = QtWidgets.QWidget()
+        self.top_bar = QtWidgets.QFrame()
+        self.top_bar.setFrameShape(QtWidgets.QFrame.StyledPanel)
         top_layout = QtWidgets.QHBoxLayout(self.top_bar)
+
         self.round_label = QtWidgets.QLabel()
         self.round_label.setFont(QtGui.QFont("Segoe UI", 14, QtGui.QFont.Bold))
         self.round_minus_button = QtWidgets.QPushButton("-")
@@ -413,6 +439,9 @@ class CompanionWindow(QtWidgets.QMainWindow):
         self.phase_prev_button.clicked.connect(lambda: self.shift_phase(-1))
         self.phase_next_button.clicked.connect(lambda: self.shift_phase(1))
 
+        self.active_empire_combo = QtWidgets.QComboBox()
+        self.active_empire_combo.currentIndexChanged.connect(self.set_active_empire)
+
         top_layout.addWidget(self.round_label)
         top_layout.addWidget(self.round_minus_button)
         top_layout.addWidget(self.round_plus_button)
@@ -421,6 +450,9 @@ class CompanionWindow(QtWidgets.QMainWindow):
         top_layout.addWidget(self.phase_label)
         top_layout.addWidget(self.phase_prev_button)
         top_layout.addWidget(self.phase_next_button)
+        top_layout.addStretch()
+        top_layout.addWidget(QtWidgets.QLabel("Active Empire"))
+        top_layout.addWidget(self.active_empire_combo)
         layout.addWidget(self.top_bar)
 
         self.initiative_group = QtWidgets.QGroupBox("Initiative")
@@ -434,6 +466,10 @@ class CompanionWindow(QtWidgets.QMainWindow):
         self.seats_group = QtWidgets.QGroupBox("Seats & Empires")
         self.seats_layout = QtWidgets.QVBoxLayout(self.seats_group)
         layout.addWidget(self.seats_group)
+
+        self.defense_group = QtWidgets.QGroupBox("Defense Strength")
+        self.defense_layout = QtWidgets.QVBoxLayout(self.defense_group)
+        layout.addWidget(self.defense_group)
 
     def build_log_tab(self) -> None:
         layout = QtWidgets.QVBoxLayout(self.log_tab)
@@ -492,7 +528,7 @@ class CompanionWindow(QtWidgets.QMainWindow):
             empire = seat.empires[0]
             civ_combo = QtWidgets.QComboBox()
             civ_combo.addItems(CIVS)
-            civ_combo.setCurrentText(empire.civ)
+            civ_combo.setCurrentText(empire.civilization)
             civ_combo.currentTextChanged.connect(
                 lambda civ, empire_id=empire.id: self.update_empire_civ(empire_id, civ)
             )
@@ -510,10 +546,25 @@ class CompanionWindow(QtWidgets.QMainWindow):
     def refresh_play(self) -> None:
         self.round_label.setText(f"Round {self.state.round_number}")
         self.phase_label.setText(f"Phase: {PHASES[self.state.phase_index]}")
+        self.update_top_bar_theme()
 
+        self.refresh_active_empire_selector()
         self.refresh_initiative()
         self.refresh_systems()
         self.refresh_seats()
+        self.refresh_defense()
+
+    def refresh_active_empire_selector(self) -> None:
+        self.active_empire_combo.blockSignals(True)
+        self.active_empire_combo.clear()
+        for empire in self.all_empires():
+            self.active_empire_combo.addItem(f"{empire.name} ({empire.civilization})", empire.id)
+        if self.state.active_empire_id:
+            for index in range(self.active_empire_combo.count()):
+                if self.active_empire_combo.itemData(index) == self.state.active_empire_id:
+                    self.active_empire_combo.setCurrentIndex(index)
+                    break
+        self.active_empire_combo.blockSignals(False)
 
     def refresh_initiative(self) -> None:
         for i in reversed(range(self.initiative_layout.count())):
@@ -533,12 +584,22 @@ class CompanionWindow(QtWidgets.QMainWindow):
             self.initiative_selectors.append(combo)
             form_layout.addRow(seat.name, combo)
 
+        saved_order = self.state.initiative_by_round.get(str(self.state.round_number))
+        if saved_order:
+            for seat, combo in zip(self.state.seats, self.initiative_selectors):
+                if seat.id in saved_order:
+                    rank = saved_order.index(seat.id) + 1
+                    combo.setCurrentText(str(rank))
+
         self.initiative_layout.addWidget(form_widget)
 
         button_row = QtWidgets.QHBoxLayout()
         self.save_initiative_button = QtWidgets.QPushButton("Save Initiative")
+        self.random_initiative_button = QtWidgets.QPushButton("Random Initiative")
         self.save_initiative_button.clicked.connect(self.save_initiative)
+        self.random_initiative_button.clicked.connect(self.random_initiative)
         button_row.addWidget(self.save_initiative_button)
+        button_row.addWidget(self.random_initiative_button)
         self.initiative_display = QtWidgets.QLabel()
         self.initiative_display.setText(self.current_initiative_display())
         button_row.addWidget(self.initiative_display)
@@ -585,9 +646,9 @@ class CompanionWindow(QtWidgets.QMainWindow):
 
         unowned_group = QtWidgets.QGroupBox("Unowned Systems")
         unowned_layout = QtWidgets.QVBoxLayout(unowned_group)
-        unowned_table = QtWidgets.QTableWidget(0, 9)
+        unowned_table = QtWidgets.QTableWidget(0, 10)
         unowned_table.setHorizontalHeaderLabels(
-            ["Name", "P", "R", "C", "CTRL", "Claim", "Claim", "Edit", "Delete"]
+            ["Owner", "Name", "P", "R", "C", "CTRL", "Claim", "Claim", "Edit", "Delete"]
         )
         unowned_table.horizontalHeader().setStretchLastSection(True)
         unowned_layout.addWidget(unowned_table)
@@ -596,57 +657,61 @@ class CompanionWindow(QtWidgets.QMainWindow):
         for system in unowned_systems:
             row = unowned_table.rowCount()
             unowned_table.insertRow(row)
-            unowned_table.setItem(row, 0, QtWidgets.QTableWidgetItem(system.name))
-            unowned_table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(system.nodes["production"])))
-            unowned_table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(system.nodes["research"])))
-            unowned_table.setItem(row, 3, QtWidgets.QTableWidgetItem(str(system.nodes["culture"])))
-            unowned_table.setItem(row, 4, QtWidgets.QTableWidgetItem(str(system.nodes["control"])))
+            unowned_table.setCellWidget(row, 0, self.badge_label("UN", "#8b949e"))
+            unowned_table.setItem(row, 1, QtWidgets.QTableWidgetItem(system.name))
+            unowned_table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(system.nodes["production"])))
+            unowned_table.setItem(row, 3, QtWidgets.QTableWidgetItem(str(system.nodes["research"])))
+            unowned_table.setItem(row, 4, QtWidgets.QTableWidgetItem(str(system.nodes["culture"])))
+            unowned_table.setItem(row, 5, QtWidgets.QTableWidgetItem(str(system.nodes["control"])))
 
             claim_combo = QtWidgets.QComboBox()
             for owner_id, label in owner_options[1:]:
                 claim_combo.addItem(label, owner_id)
-            unowned_table.setCellWidget(row, 5, claim_combo)
+            unowned_table.setCellWidget(row, 6, claim_combo)
 
             claim_button = QtWidgets.QPushButton("Claim")
-            claim_button.clicked.connect(lambda checked, sys_id=system.id, combo=claim_combo: self.claim_system(sys_id, combo))
-            unowned_table.setCellWidget(row, 6, claim_button)
+            claim_button.clicked.connect(
+                lambda checked, sys_id=system.id, combo=claim_combo: self.claim_system(sys_id, combo)
+            )
+            unowned_table.setCellWidget(row, 7, claim_button)
 
             edit_button = QtWidgets.QPushButton("Edit")
             edit_button.clicked.connect(lambda checked, sys_id=system.id: self.edit_system(sys_id))
-            unowned_table.setCellWidget(row, 7, edit_button)
+            unowned_table.setCellWidget(row, 8, edit_button)
 
             delete_button = QtWidgets.QPushButton("Delete")
             delete_button.clicked.connect(lambda checked, sys_id=system.id: self.delete_system(sys_id))
-            unowned_table.setCellWidget(row, 8, delete_button)
+            unowned_table.setCellWidget(row, 9, delete_button)
 
         self.systems_layout.addWidget(unowned_group)
 
         owned_group = QtWidgets.QGroupBox("Owned Systems")
         owned_layout = QtWidgets.QVBoxLayout(owned_group)
         for empire in self.all_empires():
-            empire_box = QtWidgets.QGroupBox(f"{empire.name} ({empire.civ})")
+            empire_box = QtWidgets.QGroupBox(f"{empire.name} ({empire.civilization})")
             empire_layout = QtWidgets.QVBoxLayout(empire_box)
-            table = QtWidgets.QTableWidget(0, 7)
-            table.setHorizontalHeaderLabels(["Name", "P", "R", "C", "CTRL", "Edit", "Delete"])
+            table = QtWidgets.QTableWidget(0, 8)
+            table.setHorizontalHeaderLabels(["Owner", "Name", "P", "R", "C", "CTRL", "Edit", "Delete"])
             table.horizontalHeader().setStretchLastSection(True)
 
             systems = [system for system in self.state.systems if system.owner_id == empire.id]
             for system in systems:
                 row = table.rowCount()
                 table.insertRow(row)
-                table.setItem(row, 0, QtWidgets.QTableWidgetItem(system.name))
-                table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(system.nodes["production"])))
-                table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(system.nodes["research"])))
-                table.setItem(row, 3, QtWidgets.QTableWidgetItem(str(system.nodes["culture"])))
-                table.setItem(row, 4, QtWidgets.QTableWidgetItem(str(system.nodes["control"])))
+                table.setCellWidget(row, 0, self.owner_badge(empire))
+                table.setItem(row, 1, QtWidgets.QTableWidgetItem(system.name))
+                table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(system.nodes["production"])))
+                table.setItem(row, 3, QtWidgets.QTableWidgetItem(str(system.nodes["research"])))
+                table.setItem(row, 4, QtWidgets.QTableWidgetItem(str(system.nodes["culture"])))
+                table.setItem(row, 5, QtWidgets.QTableWidgetItem(str(system.nodes["control"])))
 
                 edit_button = QtWidgets.QPushButton("Edit")
                 edit_button.clicked.connect(lambda checked, sys_id=system.id: self.edit_system(sys_id))
-                table.setCellWidget(row, 5, edit_button)
+                table.setCellWidget(row, 6, edit_button)
 
                 delete_button = QtWidgets.QPushButton("Delete")
                 delete_button.clicked.connect(lambda checked, sys_id=system.id: self.delete_system(sys_id))
-                table.setCellWidget(row, 6, delete_button)
+                table.setCellWidget(row, 7, delete_button)
 
             empire_layout.addWidget(table)
             owned_layout.addWidget(empire_box)
@@ -682,10 +747,48 @@ class CompanionWindow(QtWidgets.QMainWindow):
 
         self.seats_layout.addStretch()
 
+    def refresh_defense(self) -> None:
+        for i in reversed(range(self.defense_layout.count())):
+            item = self.defense_layout.takeAt(i)
+            if item.widget():
+                item.widget().deleteLater()
+
+        selector_row = QtWidgets.QHBoxLayout()
+        selector_row.addWidget(QtWidgets.QLabel("Target Empire"))
+        self.defense_empire_combo = QtWidgets.QComboBox()
+        for empire in self.all_empires():
+            self.defense_empire_combo.addItem(f"{empire.name} ({empire.civilization})", empire.id)
+        self.defense_empire_combo.currentIndexChanged.connect(self.update_defense_display)
+        selector_row.addWidget(self.defense_empire_combo)
+        selector_row.addStretch()
+        self.defense_layout.addLayout(selector_row)
+
+        self.defense_value_label = QtWidgets.QLabel()
+        self.defense_formula_label = QtWidgets.QLabel()
+        self.defense_layout.addWidget(self.defense_value_label)
+        self.defense_layout.addWidget(self.defense_formula_label)
+        self.update_defense_display()
+
     def refresh_log(self) -> None:
         self.log_view.clear()
         for entry in self.state.log_entries:
             self.log_view.addItem(entry)
+
+    def update_top_bar_theme(self) -> None:
+        empire = self.get_empire(self.state.active_empire_id)
+        if empire:
+            color = self.civ_color(empire.civilization)
+            self.top_bar.setStyleSheet(
+                f"QFrame {{ background-color: {color}; border-radius: 6px; }} QLabel {{ color: #101820; }}"
+            )
+        else:
+            self.top_bar.setStyleSheet("")
+
+    def set_active_empire(self) -> None:
+        self.state.active_empire_id = self.active_empire_combo.currentData()
+        self.log_action("Active empire updated.")
+        self.autosave()
+        self.refresh_play()
 
     def update_seat_name(self, seat_id: str, text: str) -> None:
         seat = self.get_seat(seat_id)
@@ -706,8 +809,10 @@ class CompanionWindow(QtWidgets.QMainWindow):
     def update_empire_civ(self, empire_id: str, civ: str) -> None:
         empire = self.get_empire(empire_id)
         if empire:
-            empire.civ = civ
-            self.log_action(f"Empire civ set to {empire.civ}.")
+            empire.civilization = civ
+            self.log_action(f"Empire civ set to {empire.civilization}.")
+            if self.state.active_empire_id == empire.id:
+                self.update_top_bar_theme()
             self.autosave()
             self.refresh_play()
 
@@ -758,6 +863,17 @@ class CompanionWindow(QtWidgets.QMainWindow):
         order = [rank_map[str(rank)] for rank in range(1, len(self.state.seats) + 1)]
         self.state.initiative_by_round[str(self.state.round_number)] = order
         self.log_action(f"Initiative saved for round {self.state.round_number}.")
+        self.autosave()
+        self.refresh_play()
+
+    def random_initiative(self) -> None:
+        seat_ids = [seat.id for seat in self.state.seats]
+        random.shuffle(seat_ids)
+        self.state.initiative_by_round[str(self.state.round_number)] = seat_ids
+        first_seat = self.get_seat(seat_ids[0]) if seat_ids else None
+        if first_seat and first_seat.empires:
+            self.state.active_empire_id = first_seat.empires[0].id
+        self.log_action(f"Initiative randomized for round {self.state.round_number}.")
         self.autosave()
         self.refresh_play()
 
@@ -823,10 +939,14 @@ class CompanionWindow(QtWidgets.QMainWindow):
             return
         empire = Empire(
             id=str(uuid.uuid4()),
-            civ=CIVS[0],
             name=f"Empire {len(seat.empires) + 1}",
-            tokens={"ascendancy": 0, "command": 0},
-            resources={"dollars": 0, "production": 0, "research": 0, "culture": 0},
+            civilization=CIVS[0],
+            ascendancy_tokens=0,
+            command_tokens=0,
+            resources={"production": 0, "research": 0, "culture": 0, "dollars": 0},
+            starbases=0,
+            weapon_level=0,
+            shield_level=0,
         )
         seat.empires.append(empire)
         self.log_action(f"Empire added to {seat.name}: {empire.name}.")
@@ -848,7 +968,10 @@ class CompanionWindow(QtWidgets.QMainWindow):
         empire = self.get_empire(empire_id)
         if not empire:
             return
-        empire.tokens[key] = max(0, empire.tokens.get(key, 0) + delta)
+        if key == "ascendancy":
+            empire.ascendancy_tokens = max(0, empire.ascendancy_tokens + delta)
+        else:
+            empire.command_tokens = max(0, empire.command_tokens + delta)
         self.log_action(f"{empire.name} {key} tokens adjusted by {delta}.")
         self.autosave()
         self.refresh_play()
@@ -859,6 +982,16 @@ class CompanionWindow(QtWidgets.QMainWindow):
             return
         empire.resources[key] = empire.resources.get(key, 0) + delta
         self.log_action(f"{empire.name} {key} adjusted by {delta}.")
+        self.autosave()
+        self.refresh_play()
+
+    def adjust_stat(self, empire_id: str, key: str, delta: int) -> None:
+        empire = self.get_empire(empire_id)
+        if not empire:
+            return
+        current = getattr(empire, key)
+        setattr(empire, key, max(0, current + delta))
+        self.log_action(f"{empire.name} {key.replace('_', ' ')} adjusted by {delta}.")
         self.autosave()
         self.refresh_play()
 
@@ -902,6 +1035,8 @@ class CompanionWindow(QtWidgets.QMainWindow):
         if filename:
             payload = json.loads(Path(filename).read_text(encoding="utf-8"))
             self.state = dict_to_state(payload)
+            if not self.state.active_empire_id and self.all_empires():
+                self.state.active_empire_id = self.all_empires()[0].id
             self.log_action("State imported.")
             self.autosave()
             self.refresh_all()
@@ -927,7 +1062,7 @@ class CompanionWindow(QtWidgets.QMainWindow):
     def owner_options(self) -> list[tuple[str | None, str]]:
         options = [(None, "Unowned")]
         for empire in self.all_empires():
-            options.append((empire.id, f"{empire.name} ({empire.civ})"))
+            options.append((empire.id, f"{empire.name} ({empire.civilization})"))
         return options
 
     def seat_totals(self, seat: Seat) -> dict:
@@ -982,20 +1117,46 @@ class CompanionWindow(QtWidgets.QMainWindow):
                 return system
         return None
 
+    def civ_color(self, civ: str) -> str:
+        mapping = {
+            "Federation": "#58a6ff",
+            "Klingon": "#f85149",
+            "Romulan": "#3fb950",
+            "Cardassian": "#d29922",
+            "Ferengi": "#f2cc60",
+            "Dominion": "#a371f7",
+            "Borg": "#7d8590",
+            "Andorian": "#1f6feb",
+            "Vulcan": "#2ea043",
+            "Custom / Other": "#8b949e",
+        }
+        return mapping.get(civ, "#8b949e")
+
+    def civ_abbreviation(self, civ: str) -> str:
+        parts = civ.replace("/", " ").split()
+        if len(parts) == 1:
+            return civ[:2].upper()
+        return "".join(part[0] for part in parts[:2]).upper()
+
+    def badge_label(self, text: str, color: str) -> QtWidgets.QLabel:
+        label = QtWidgets.QLabel(text)
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setStyleSheet(
+            f"background-color: {color}; color: #101820; border-radius: 4px; padding: 2px;"
+        )
+        return label
+
+    def owner_badge(self, empire: Empire) -> QtWidgets.QLabel:
+        return self.badge_label(self.civ_abbreviation(empire.civilization), self.civ_color(empire.civilization))
+
     def empire_card(self, empire: Empire) -> QtWidgets.QWidget:
         card = QtWidgets.QFrame()
         card.setFrameShape(QtWidgets.QFrame.StyledPanel)
         layout = QtWidgets.QVBoxLayout(card)
 
         header_row = QtWidgets.QHBoxLayout()
-        badge = QtWidgets.QLabel(self.civ_abbreviation(empire.civ))
-        badge.setFixedWidth(36)
-        badge.setAlignment(QtCore.Qt.AlignCenter)
-        badge.setStyleSheet(
-            f"background-color: {self.civ_color(empire.civ)}; color: #101820; border-radius: 4px;"
-        )
-        header_row.addWidget(badge)
-        header_row.addWidget(QtWidgets.QLabel(f"{empire.name} ({empire.civ})"))
+        header_row.addWidget(self.owner_badge(empire))
+        header_row.addWidget(QtWidgets.QLabel(f"{empire.name} ({empire.civilization})"))
         header_row.addStretch()
         edit_button = QtWidgets.QPushButton("Edit Empire")
         edit_button.clicked.connect(lambda checked, empire_id=empire.id: self.edit_empire(empire_id))
@@ -1026,6 +1187,15 @@ class CompanionWindow(QtWidgets.QMainWindow):
         resource_row.addWidget(self.adjuster(empire, "culture", False), 1, 3)
         layout.addLayout(resource_row)
 
+        stat_row = QtWidgets.QGridLayout()
+        stat_row.addWidget(QtWidgets.QLabel("Starbases"), 0, 0)
+        stat_row.addWidget(self.stat_adjuster(empire, "starbases"), 0, 1)
+        stat_row.addWidget(QtWidgets.QLabel("Weapon Level"), 0, 2)
+        stat_row.addWidget(self.stat_adjuster(empire, "weapon_level"), 0, 3)
+        stat_row.addWidget(QtWidgets.QLabel("Shield Level"), 1, 0)
+        stat_row.addWidget(self.stat_adjuster(empire, "shield_level"), 1, 1)
+        layout.addLayout(stat_row)
+
         return card
 
     def adjuster(self, empire: Empire, key: str, is_token: bool) -> QtWidgets.QWidget:
@@ -1039,7 +1209,10 @@ class CompanionWindow(QtWidgets.QMainWindow):
         value.setAlignment(QtCore.Qt.AlignCenter)
 
         if is_token:
-            value.setText(str(empire.tokens.get(key, 0)))
+            if key == "ascendancy":
+                value.setText(str(empire.ascendancy_tokens))
+            else:
+                value.setText(str(empire.command_tokens))
             minus.clicked.connect(lambda: self.adjust_token(empire.id, key, -1))
             plus.clicked.connect(lambda: self.adjust_token(empire.id, key, 1))
         else:
@@ -1052,26 +1225,38 @@ class CompanionWindow(QtWidgets.QMainWindow):
         layout.addWidget(plus)
         return widget
 
-    def civ_color(self, civ: str) -> str:
-        mapping = {
-            "Federation": "#58a6ff",
-            "Klingon": "#f85149",
-            "Romulan": "#3fb950",
-            "Cardassian": "#d29922",
-            "Ferengi": "#f2cc60",
-            "Dominion": "#a371f7",
-            "Borg": "#7d8590",
-            "Andorian": "#1f6feb",
-            "Vulcan": "#2ea043",
-            "Custom/Other": "#8b949e",
-        }
-        return mapping.get(civ, "#8b949e")
+    def stat_adjuster(self, empire: Empire, key: str) -> QtWidgets.QWidget:
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        minus = QtWidgets.QPushButton("-")
+        plus = QtWidgets.QPushButton("+")
+        value = QtWidgets.QLabel()
+        value.setFixedWidth(40)
+        value.setAlignment(QtCore.Qt.AlignCenter)
+        value.setText(str(getattr(empire, key)))
 
-    def civ_abbreviation(self, civ: str) -> str:
-        parts = civ.replace("/", " ").split()
-        if len(parts) == 1:
-            return civ[:2].upper()
-        return "".join(part[0] for part in parts[:2]).upper()
+        minus.clicked.connect(lambda: self.adjust_stat(empire.id, key, -1))
+        plus.clicked.connect(lambda: self.adjust_stat(empire.id, key, 1))
+
+        layout.addWidget(minus)
+        layout.addWidget(value)
+        layout.addWidget(plus)
+        return widget
+
+    def update_defense_display(self) -> None:
+        empire = self.get_empire(self.defense_empire_combo.currentData())
+        if not empire:
+            self.defense_value_label.setText("Defense Strength: N/A")
+            self.defense_formula_label.setText("")
+            return
+        totals = self.empire_totals(empire)
+        defense = empire.starbases * 10 + empire.weapon_level * 2 + empire.shield_level * 2 + totals["control"]
+        self.defense_value_label.setText(f"Defense Strength: {defense}")
+        self.defense_formula_label.setText(
+            "Formula: "
+            f"({empire.starbases} x 10) + ({empire.weapon_level} x 2) + ({empire.shield_level} x 2) + ({totals['control']} CTRL)"
+        )
 
 
 def main() -> None:
