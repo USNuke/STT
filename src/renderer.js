@@ -33,9 +33,69 @@ const defaultState = () => ({
   round: 1,
   phase: 'Initiative',
   seats: [
-    { id: 'seat-1', name: 'Jason', initiative: 1 },
-    { id: 'seat-2', name: 'Christine', initiative: 2 },
-    { id: 'seat-3', name: 'Jacob', initiative: 3 }
+    {
+      id: 'seat-1',
+      name: 'Player 1',
+      initiative: 1,
+      isNpc: false,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    },
+    {
+      id: 'seat-2',
+      name: 'Player 2',
+      initiative: 2,
+      isNpc: false,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    },
+    {
+      id: 'seat-3',
+      name: 'Player 3',
+      initiative: 3,
+      isNpc: false,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    },
+    {
+      id: 'seat-4',
+      name: 'Player 4',
+      initiative: 4,
+      isNpc: false,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    },
+    {
+      id: 'seat-5',
+      name: 'Player 5',
+      initiative: 5,
+      isNpc: false,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    },
+    {
+      id: 'seat-6',
+      name: 'Borg NPC',
+      initiative: 6,
+      isNpc: true,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    },
+    {
+      id: 'seat-7',
+      name: 'Dominion NPC',
+      initiative: 7,
+      isNpc: true,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    }
   ],
   empires: [],
   systems: [],
@@ -127,11 +187,24 @@ function normalizeState(imported) {
     ...imported
   };
 
-  normalized.seats = (imported.seats || base.seats).map((seat, index) => ({
-    id: seat.id || `seat-${index + 1}`,
-    name: seat.name || base.seats[index]?.name || `Seat ${index + 1}`,
-    initiative: seat.initiative || index + 1
-  }));
+  const importedSeats = imported.seats || [];
+  const seatCount = Math.max(importedSeats.length, base.seats.length);
+  normalized.seats = Array.from({ length: seatCount }, (_, index) => {
+    const seat = importedSeats[index] || base.seats[index] || {};
+    const fallback = base.seats[index] || {};
+    return {
+      id: seat.id || fallback.id || `seat-${index + 1}`,
+      name:
+        seat.name ||
+        fallback.name ||
+        `${index < 5 ? 'Player' : 'NPC'} ${index + 1}`,
+      initiative: seat.initiative || fallback.initiative || index + 1,
+      isNpc: seat.isNpc ?? fallback.isNpc ?? index >= 5,
+      attackShuttles: Math.max(0, Number(seat.attackShuttles) || 0),
+      frigates: Math.max(0, Number(seat.frigates) || 0),
+      capitalShips: Math.max(0, Number(seat.capitalShips) || 0)
+    };
+  });
 
   normalized.empires = (imported.empires || []).map((empire, index) => ({
     id: empire.id || `empire-${Date.now()}-${index}`,
@@ -150,6 +223,9 @@ function normalizeState(imported) {
     starbases: Math.max(0, Number(empire.starbases) || 0),
     weaponLevel: Math.max(0, Number(empire.weaponLevel) || 0),
     shieldLevel: Math.max(0, Number(empire.shieldLevel) || 0),
+    attackShuttles: Math.max(0, Number(empire.attackShuttles) || 0),
+    frigates: Math.max(0, Number(empire.frigates) || 0),
+    capitalShips: Math.max(0, Number(empire.capitalShips) || 0),
     seatId: empire.seatId || base.seats[0].id
   }));
 
@@ -270,6 +346,9 @@ function addEmpire({ name, civilization, seatId }) {
     starbases: 0,
     weaponLevel: 0,
     shieldLevel: 0,
+    attackShuttles: 0,
+    frigates: 0,
+    capitalShips: 0,
     seatId
   };
   state.empires.push(newEmpire);
@@ -307,6 +386,16 @@ function adjustCounter(empireId, key, delta) {
   empire[key] = Math.max(0, (empire[key] || 0) + delta);
   saveState();
   renderEmpires();
+}
+
+function adjustSeatCounter(seatId, key, delta) {
+  const seat = state.seats.find((item) => item.id === seatId);
+  if (!seat) return;
+  pushHistory();
+  seat[key] = Math.max(0, (seat[key] || 0) + delta);
+  saveState();
+  renderSeats();
+  renderPlayerInterface();
 }
 
 function getEmpireColor(empireId) {
@@ -349,6 +438,24 @@ function getSystemsForEmpire(empireId) {
 
 function getInitiativeOrder() {
   return [...state.seats].sort((a, b) => a.initiative - b.initiative);
+}
+
+function getPlayerSeats() {
+  return state.seats.filter((seat) => !seat.isNpc);
+}
+
+function formatSeatLabel(seat, index) {
+  if (seat.isNpc) {
+    return `${seat.name} (NPC)`;
+  }
+  return `Player ${index + 1}`;
+}
+
+function formatSeatOptionLabel(seat, index) {
+  if (seat.isNpc) {
+    return `${seat.name} (NPC)`;
+  }
+  return seat.name || `Player ${index + 1}`;
 }
 
 function findFirstEmpireForSeat(seatId) {
@@ -472,7 +579,8 @@ function renderInitiative() {
     container.className = 'card';
     container.textContent = seat.name;
     const select = document.createElement('select');
-    [1, 2, 3].forEach((rank) => {
+    Array.from({ length: state.seats.length }, (_, index) => index + 1).forEach(
+      (rank) => {
       const option = document.createElement('option');
       option.value = rank;
       option.textContent = `Rank ${rank}`;
@@ -480,7 +588,8 @@ function renderInitiative() {
         option.selected = true;
       }
       select.appendChild(option);
-    });
+    }
+    );
     select.addEventListener('change', (event) => {
       updateInitiative(seat.id, Number(event.target.value));
     });
@@ -494,17 +603,45 @@ function renderSeats() {
   state.seats.forEach((seat, index) => {
     const card = document.createElement('div');
     card.className = 'card';
+    const label = formatSeatLabel(seat, index);
     card.innerHTML = `
-      <h3>Player ${index + 1}</h3>
+      <h3>${label}</h3>
       <label>
-        Player Name
+        ${seat.isNpc ? 'NPC Name' : 'Player Name'}
         <input type="text" value="${seat.name}" />
       </label>
       <p>Initiative Rank: ${seat.initiative}</p>
+      <h4>Fleet Counters</h4>
+      ${[
+        { key: 'attackShuttles', label: 'Attack Shuttles' },
+        { key: 'frigates', label: 'Frigates' },
+        { key: 'capitalShips', label: 'Capital Ships' }
+      ]
+        .map(
+          (item) => `
+          <div class="resource-row">
+            <span>${item.label}: ${seat[item.key] || 0}</span>
+            <div class="resource-buttons">
+              <button data-seat-counter="${item.key}" data-delta="1">+</button>
+              <button data-seat-counter="${item.key}" data-delta="-1">-</button>
+            </div>
+          </div>
+        `
+        )
+        .join('')}
     `;
     const input = card.querySelector('input');
     input.addEventListener('change', (event) => {
       updateSeatName(seat.id, event.target.value.trim() || seat.name);
+    });
+    card.querySelectorAll('button[data-seat-counter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        adjustSeatCounter(
+          seat.id,
+          button.dataset.seatCounter,
+          Number(button.dataset.delta)
+        );
+      });
     });
     elements.seats.appendChild(card);
   });
@@ -524,10 +661,10 @@ function renderEmpireForm() {
   });
 
   const seatSelect = document.createElement('select');
-  state.seats.forEach((seat) => {
+  state.seats.forEach((seat, index) => {
     const option = document.createElement('option');
     option.value = seat.id;
-    option.textContent = seat.name;
+    option.textContent = formatSeatOptionLabel(seat, index);
     seatSelect.appendChild(option);
   });
 
@@ -576,10 +713,10 @@ function renderEmpires() {
         <select data-field="seat">
           ${state.seats
             .map(
-              (seat) =>
+              (seat, index) =>
                 `<option value="${seat.id}" ${
                   seat.id === empire.seatId ? 'selected' : ''
-                }>${seat.name}</option>`
+                }>${formatSeatOptionLabel(seat, index)}</option>`
             )
             .join('')}
         </select>
@@ -622,6 +759,24 @@ function renderEmpires() {
           (item) => `
           <div class="resource-row">
             <span>${item.label}: ${empire[item.key]}</span>
+            <div class="resource-buttons">
+              <button data-counter="${item.key}" data-delta="1">+</button>
+              <button data-counter="${item.key}" data-delta="-1">-</button>
+            </div>
+          </div>
+        `
+        )
+        .join('')}
+      <h4>Fleet</h4>
+      ${[
+        { key: 'attackShuttles', label: 'Attack Shuttles' },
+        { key: 'frigates', label: 'Frigates' },
+        { key: 'capitalShips', label: 'Capital Ships' }
+      ]
+        .map(
+          (item) => `
+          <div class="resource-row">
+            <span>${item.label}: ${empire[item.key] || 0}</span>
             <div class="resource-buttons">
               <button data-counter="${item.key}" data-delta="1">+</button>
               <button data-counter="${item.key}" data-delta="-1">-</button>
@@ -802,10 +957,10 @@ function renderSystemForm() {
 function renderTradeForm() {
   elements.tradeForm.innerHTML = '';
   const fromSeatSelect = document.createElement('select');
-  state.seats.forEach((seat) => {
+  getPlayerSeats().forEach((seat, index) => {
     const option = document.createElement('option');
     option.value = seat.id;
-    option.textContent = seat.name;
+    option.textContent = formatSeatOptionLabel(seat, index);
     fromSeatSelect.appendChild(option);
   });
 
@@ -821,10 +976,10 @@ function renderTradeForm() {
   });
 
   const toSeatSelect = document.createElement('select');
-  state.seats.forEach((seat) => {
+  getPlayerSeats().forEach((seat, index) => {
     const option = document.createElement('option');
     option.value = seat.id;
-    option.textContent = seat.name;
+    option.textContent = formatSeatOptionLabel(seat, index);
     toSeatSelect.appendChild(option);
   });
 
@@ -1119,10 +1274,10 @@ function renderAll() {
 
 function renderPlayerInterface() {
   elements.playerSeat.innerHTML = '';
-  state.seats.forEach((seat) => {
+  state.seats.forEach((seat, index) => {
     const option = document.createElement('option');
     option.value = seat.id;
-    option.textContent = seat.name;
+    option.textContent = formatSeatOptionLabel(seat, index);
     if (seat.id === state.playerSeatId) {
       option.selected = true;
     }
@@ -1169,6 +1324,11 @@ function renderPlayerInterface() {
       <span class="summary-pill">R ${totals.research}</span>
       <span class="summary-pill">C ${totals.culture}</span>
       <span class="summary-pill">$ ${totals.dollars}</span>
+    </div>
+    <div>
+      <span class="summary-pill">Shuttles ${seat?.attackShuttles || 0}</span>
+      <span class="summary-pill">Frigates ${seat?.frigates || 0}</span>
+      <span class="summary-pill">Capital ${seat?.capitalShips || 0}</span>
     </div>
     <p class="muted">Total Nodes — P:${nodes.production} R:${nodes.research} C:${nodes.culture} CTRL:${nodes.control}</p>
     <p class="muted">Trade Gains — P:${tradeTotals.Production} R:${tradeTotals.Research} C:${tradeTotals.Culture}</p>

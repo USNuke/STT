@@ -16,11 +16,12 @@ The app focuses on bookkeeping: seats, empires, systems, resources, phases, and 
 
 ## Features (Playtest v1)
 
-- Three permanent seats with editable names.
+- Up to five player seats plus two NPC seats (Borg and Dominion).
 - Empire tracking with civilization presets and active empire theming.
 - Star system tracking with editable node values and ownership.
 - Round and phase controls with initiative ordering.
 - Seat-focused player interface summary for quick reference.
+- Seat-level fleet counters for attack shuttles, frigates, and capital ships.
 - Earnings calculation popup for Building phase.
 - Persistent state via localStorage with JSON import/export.
 - Append-only log with clipboard and export support.
