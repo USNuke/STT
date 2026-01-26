@@ -229,8 +229,14 @@ function normalizeState(imported) {
     weaponLevel: Math.max(0, Number(empire.weaponLevel) || 0),
     shieldLevel: Math.max(0, Number(empire.shieldLevel) || 0),
     attackShuttles: Math.max(0, Number(empire.attackShuttles) || 0),
+    fleets: Math.max(0, Number(empire.fleets) || 0),
     frigates: Math.max(0, Number(empire.frigates) || 0),
     capitalShips: Math.max(0, Number(empire.capitalShips) || 0),
+    techs: Math.max(0, Number(empire.techs) || 0),
+    completedAdvancements: Math.max(0, Number(empire.completedAdvancements) || 0),
+    warpLanes: Math.max(0, Number(empire.warpLanes) || 0),
+    allianceMembers: Math.max(0, Number(empire.allianceMembers) || 0),
+    allianceDominance: Boolean(empire.allianceDominance),
     seatId: empire.seatId || base.seats[0].id
   }));
 
@@ -247,7 +253,9 @@ function normalizeState(imported) {
     ownerStatus: OWNER_STATUSES.includes(system.ownerStatus)
       ? system.ownerStatus
       : 'None',
-    fullyDeveloped: Boolean(system.fullyDeveloped)
+    fullyDeveloped: Boolean(system.fullyDeveloped),
+    isHomeSystem: Boolean(system.isHomeSystem),
+    isEnemyHomeSystem: Boolean(system.isEnemyHomeSystem)
   }));
 
   normalized.activeEmpireId =
@@ -356,8 +364,14 @@ function addEmpire({ name, civilization, seatId }) {
     weaponLevel: 0,
     shieldLevel: 0,
     attackShuttles: 0,
+    fleets: 0,
     frigates: 0,
     capitalShips: 0,
+    techs: 0,
+    completedAdvancements: 0,
+    warpLanes: 0,
+    allianceMembers: 0,
+    allianceDominance: false,
     seatId
   };
   state.empires.push(newEmpire);
@@ -488,6 +502,68 @@ function calculateTotals(empireId) {
       control: totals.control + system.control
     }),
     { production: 0, research: 0, culture: 0, control: 0 }
+  );
+}
+
+function getTopLevels() {
+  if (state.empires.length === 0) {
+    return { weapon: 0, shield: 0 };
+  }
+  return state.empires.reduce(
+    (top, empire) => ({
+      weapon: Math.max(top.weapon, empire.weaponLevel || 0),
+      shield: Math.max(top.shield, empire.shieldLevel || 0)
+    }),
+    { weapon: 0, shield: 0 }
+  );
+}
+
+function calculateEndGameScore(empire) {
+  const systems = getSystemsForEmpire(empire.id);
+  const totals = calculateTotals(empire.id);
+  const topLevels = getTopLevels();
+  const tradeCount = state.tradeAgreements.filter((agreement) => {
+    if (agreement.fromSeatId === empire.seatId) return true;
+    return agreement.toType === 'seat' && agreement.toSeatId === empire.seatId;
+  }).length;
+
+  const scoreBreakdown = {
+    controlledSystems: systems.length * 2,
+    enemyHomeSystems: systems.filter((system) => system.isEnemyHomeSystem).length * 5,
+    ownHomeSystem: systems.filter((system) => system.isHomeSystem).length * 5,
+    starbaseSystems: systems.filter((system) => system.hasStarbase).length,
+    productionNodes: totals.production,
+    researchNodes: totals.research,
+    cultureNodes: totals.culture,
+    fullyDeveloped: systems.filter((system) => system.fullyDeveloped).length * 2,
+    fleets: (empire.fleets || 0),
+    capitalShips: (empire.capitalShips || 0) * 2,
+    operationalStarbases: (empire.starbases || 0) * 2,
+    warpLanes: (empire.warpLanes || 0),
+    advancements: (empire.completedAdvancements || 0),
+    topWeapon: empire.weaponLevel === topLevels.weapon ? 2 : 0,
+    topShield: empire.shieldLevel === topLevels.shield ? 2 : 0,
+    ascendancyTokens: (empire.ascendancyTokens || 0) * 3,
+    tradeAgreements: tradeCount,
+    allianceMembers: (empire.allianceMembers || 0),
+    allianceDominance: empire.allianceDominance
+      ? (empire.allianceMembers || 0) * 3
+      : 0
+  };
+
+  const totalScore = Object.values(scoreBreakdown).reduce(
+    (sum, value) => sum + value,
+    0
+  );
+
+  return { totalScore, scoreBreakdown, tradeCount, topLevels };
+}
+
+function calculateSeatScore(seatId) {
+  const seatEmpires = state.empires.filter((empire) => empire.seatId === seatId);
+  return seatEmpires.reduce(
+    (sum, empire) => sum + calculateEndGameScore(empire).totalScore,
+    0
   );
 }
 
@@ -742,6 +818,7 @@ function renderEmpires() {
   state.empires.forEach((empire) => {
     const totals = calculateTotals(empire.id);
     const defense = calculateDefense(empire);
+    const score = calculateEndGameScore(empire);
     const empireColor = CIVILIZATION_COLORS[empire.civilization] || '#2d3758';
     const card = document.createElement('div');
     card.className = 'card empire-card';
@@ -820,6 +897,7 @@ function renderEmpires() {
         .join('')}
       <h4>Fleet</h4>
       ${[
+        { key: 'fleets', label: 'Fleets in Play' },
         { key: 'attackShuttles', label: 'Attack Shuttles' },
         { key: 'frigates', label: 'Frigates' },
         { key: 'capitalShips', label: 'Capital Ships' }
@@ -836,6 +914,31 @@ function renderEmpires() {
         `
         )
         .join('')}
+      <h4>Technology &amp; Strategy</h4>
+      ${[
+        { key: 'techs', label: 'Completed Techs' },
+        { key: 'completedAdvancements', label: 'Completed Advancements' },
+        { key: 'warpLanes', label: 'Locked/Controlled Warp Lanes' },
+        { key: 'allianceMembers', label: 'Alliance Members' }
+      ]
+        .map(
+          (item) => `
+          <div class="resource-row">
+            <span>${item.label}: ${empire[item.key] || 0}</span>
+            <div class="resource-buttons">
+              <button data-counter="${item.key}" data-delta="1">+</button>
+              <button data-counter="${item.key}" data-delta="-1">-</button>
+            </div>
+          </div>
+        `
+        )
+        .join('')}
+      <label class="checkbox-label">
+        <input type="checkbox" data-field="alliance-dominance" ${
+          empire.allianceDominance ? 'checked' : ''
+        } />
+        Alliance Dominance (most systems)
+      </label>
       <h4>Totals</h4>
       <p>Nodes — P:${totals.production} R:${totals.research} C:${totals.culture} CTRL:${totals.control}</p>
       <p>Defense Strength: ${defense}</p>
@@ -855,6 +958,28 @@ function renderEmpires() {
       <div class="button-row">
         <button data-active="${empire.id}" class="primary">Set Active</button>
       </div>
+      <h4>End Game Score: ${score.totalScore}</h4>
+      <ul class="summary-list">
+        <li>Controlled Systems: ${score.scoreBreakdown.controlledSystems}</li>
+        <li>Enemy Home Systems: ${score.scoreBreakdown.enemyHomeSystems}</li>
+        <li>Own Home System: ${score.scoreBreakdown.ownHomeSystem}</li>
+        <li>Starbase Systems: ${score.scoreBreakdown.starbaseSystems}</li>
+        <li>Production Nodes: ${score.scoreBreakdown.productionNodes}</li>
+        <li>Research Nodes: ${score.scoreBreakdown.researchNodes}</li>
+        <li>Culture Nodes: ${score.scoreBreakdown.cultureNodes}</li>
+        <li>Fully Developed Systems: ${score.scoreBreakdown.fullyDeveloped}</li>
+        <li>Fleets in Play: ${score.scoreBreakdown.fleets}</li>
+        <li>Capital Ships: ${score.scoreBreakdown.capitalShips}</li>
+        <li>Operational Starbases: ${score.scoreBreakdown.operationalStarbases}</li>
+        <li>Warp Lanes: ${score.scoreBreakdown.warpLanes}</li>
+        <li>Completed Advancements: ${score.scoreBreakdown.advancements}</li>
+        <li>Top Weapon Level: ${score.scoreBreakdown.topWeapon}</li>
+        <li>Top Shield Level: ${score.scoreBreakdown.topShield}</li>
+        <li>Ascendancy Tokens: ${score.scoreBreakdown.ascendancyTokens}</li>
+        <li>Trade Agreements: ${score.scoreBreakdown.tradeAgreements}</li>
+        <li>Alliance Members: ${score.scoreBreakdown.allianceMembers}</li>
+        <li>Alliance Dominance: ${score.scoreBreakdown.allianceDominance}</li>
+      </ul>
     `;
 
     card.querySelectorAll('button[data-resource]').forEach((button) => {
@@ -881,6 +1006,14 @@ function renderEmpires() {
     seatSelect.addEventListener('change', (event) => {
       updateEmpire(empire.id, { seatId: event.target.value });
       logEntry(`${empire.name} is now controlled by a new seat.`);
+    });
+
+    const allianceDominanceInput = card.querySelector(
+      'input[data-field="alliance-dominance"]'
+    );
+    allianceDominanceInput.addEventListener('change', (event) => {
+      updateEmpire(empire.id, { allianceDominance: event.target.checked });
+      logEntry(`${empire.name} alliance dominance updated.`);
     });
 
     const nameInput = card.querySelector('input[data-field="name"]');
@@ -948,6 +1081,20 @@ function renderSystemForm() {
     Fully Developed
   `;
 
+  const homeSystemLabel = document.createElement('label');
+  homeSystemLabel.className = 'checkbox-label';
+  homeSystemLabel.innerHTML = `
+    <input type="checkbox" id="system-home" />
+    Home System (Owner)
+  `;
+
+  const enemyHomeSystemLabel = document.createElement('label');
+  enemyHomeSystemLabel.className = 'checkbox-label';
+  enemyHomeSystemLabel.innerHTML = `
+    <input type="checkbox" id="system-enemy-home" />
+    Enemy Home System
+  `;
+
   const ownerSelect = document.createElement('select');
   const unownedOption = document.createElement('option');
   unownedOption.value = '';
@@ -977,7 +1124,9 @@ function renderSystemForm() {
       hasStarbase: starbaseLabel.querySelector('input').checked,
       quadrant: quadrantSelect.value,
       ownerStatus: ownerStatusSelect.value,
-      fullyDeveloped: fullyDevelopedLabel.querySelector('input').checked
+      fullyDeveloped: fullyDevelopedLabel.querySelector('input').checked,
+      isHomeSystem: homeSystemLabel.querySelector('input').checked,
+      isEnemyHomeSystem: enemyHomeSystemLabel.querySelector('input').checked
     });
     nameInput.value = '';
     productionInput.value = '';
@@ -988,6 +1137,8 @@ function renderSystemForm() {
     ownerStatusSelect.value = 'None';
     starbaseLabel.querySelector('input').checked = false;
     fullyDevelopedLabel.querySelector('input').checked = false;
+    homeSystemLabel.querySelector('input').checked = false;
+    enemyHomeSystemLabel.querySelector('input').checked = false;
   });
 
   elements.systemForm.append(
@@ -1000,6 +1151,8 @@ function renderSystemForm() {
     ownerStatusSelect,
     fullyDevelopedLabel,
     starbaseLabel,
+    homeSystemLabel,
+    enemyHomeSystemLabel,
     ownerSelect,
     addButton
   );
@@ -1175,6 +1328,8 @@ function renderSystems() {
         <th>Owner Status</th>
         <th>Fully Developed</th>
         <th>Starbase</th>
+        <th>Home System</th>
+        <th>Enemy Home</th>
         <th>Owner</th>
       </tr>
     </thead>
@@ -1225,6 +1380,16 @@ function renderSystems() {
       <td>
         <input type="checkbox" data-field="starbase" ${
           system.hasStarbase ? 'checked' : ''
+        } />
+      </td>
+      <td>
+        <input type="checkbox" data-field="home-system" ${
+          system.isHomeSystem ? 'checked' : ''
+        } />
+      </td>
+      <td>
+        <input type="checkbox" data-field="enemy-home-system" ${
+          system.isEnemyHomeSystem ? 'checked' : ''
         } />
       </td>
       <td>
@@ -1280,6 +1445,18 @@ function renderSystems() {
     const starbaseInput = row.querySelector('input[data-field="starbase"]');
     starbaseInput.addEventListener('change', (event) => {
       updateSystem(system.id, { hasStarbase: event.target.checked });
+    });
+
+    const homeSystemInput = row.querySelector('input[data-field="home-system"]');
+    homeSystemInput.addEventListener('change', (event) => {
+      updateSystem(system.id, { isHomeSystem: event.target.checked });
+    });
+
+    const enemyHomeSystemInput = row.querySelector(
+      'input[data-field="enemy-home-system"]'
+    );
+    enemyHomeSystemInput.addEventListener('change', (event) => {
+      updateSystem(system.id, { isEnemyHomeSystem: event.target.checked });
     });
 
     const ownerSelectInput = selects[selects.length - 1];
@@ -1368,6 +1545,7 @@ function renderPlayerInterface() {
   const seatCard = document.createElement('div');
   seatCard.className = 'card';
   const tradeTotals = calculateTradeTotals(state.playerSeatId);
+  const seatScoreTotal = calculateSeatScore(state.playerSeatId);
   seatCard.innerHTML = `
     <h3>${seat ? seat.name : 'Seat'}</h3>
     <p class="muted">Controlled Empires: ${seatEmpires.length || 0}</p>
@@ -1382,6 +1560,7 @@ function renderPlayerInterface() {
       <span class="summary-pill">Frigates ${seat?.frigates || 0}</span>
       <span class="summary-pill">Capital ${seat?.capitalShips || 0}</span>
     </div>
+    <p class="muted">End Game Score Total: ${seatScoreTotal}</p>
     <p class="muted">Total Nodes — P:${nodes.production} R:${nodes.research} C:${nodes.culture} CTRL:${nodes.control}</p>
     <p class="muted">Trade Gains — P:${tradeTotals.Production} R:${tradeTotals.Research} C:${tradeTotals.Culture}</p>
   `;
