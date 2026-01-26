@@ -114,6 +114,7 @@ const elements = {
   setupForm: document.getElementById('setup-form'),
   playerSeat: document.getElementById('player-seat'),
   playerSummary: document.getElementById('player-summary'),
+  overviewEarnings: document.getElementById('overview-earnings'),
   headerRound: document.getElementById('header-round'),
   headerPhase: document.getElementById('header-phase'),
   headerOrder: document.getElementById('header-order'),
@@ -405,8 +406,14 @@ function getEmpireColor(empireId) {
 function setActiveEmpire(empireId) {
   pushHistory();
   state.activeEmpireId = empireId || null;
+  const activeEmpire = state.empires.find((empire) => empire.id === empireId);
+  const activeSeat = state.seats.find((seat) => seat.id === activeEmpire?.seatId);
+  if (activeSeat && !activeSeat.isNpc) {
+    state.playerSeatId = activeSeat.id;
+  }
   saveState();
   renderActiveEmpire();
+  renderPlayerInterface();
 }
 
 function addSystem(system) {
@@ -1407,8 +1414,12 @@ function renderPlayerInterface() {
   elements.playerSummary.append(seatCard, empireCard);
 }
 
-function openEarningsModal() {
-  pendingEarnings = state.empires.map((empire) => {
+function openEarningsModal(seatId = null) {
+  const targetEmpires = seatId
+    ? state.empires.filter((empire) => empire.seatId === seatId)
+    : state.empires;
+
+  pendingEarnings = targetEmpires.map((empire) => {
     const totals = calculateTotals(empire.id);
     return {
       empireId: empire.id,
@@ -1581,7 +1592,12 @@ function attachEventListeners() {
   });
 
   elements.randomInitiative.addEventListener('click', randomizeInitiative);
-  elements.openEarnings.addEventListener('click', openEarningsModal);
+  elements.openEarnings.addEventListener('click', () => openEarningsModal());
+  if (elements.overviewEarnings) {
+    elements.overviewEarnings.addEventListener('click', () =>
+      openEarningsModal(state.playerSeatId)
+    );
+  }
   elements.applyEarnings.addEventListener('click', applyEarnings);
   elements.cancelEarnings.addEventListener('click', cancelEarnings);
   elements.copyLog.addEventListener('click', copyLogToClipboard);
