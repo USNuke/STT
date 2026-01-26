@@ -12,6 +12,20 @@
         <h1>Star Trek Ascendancy Companion</h1>
         <p class="subtitle">Playtest v1 — the playtest version used for co-op / competitive games.</p>
       </div>
+      <div class="header-status">
+        <div class="status-item">
+          <span class="status-label">Round</span>
+          <span id="header-round">1</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Phase</span>
+          <span id="header-phase">Initiative</span>
+        </div>
+        <div class="status-item status-order">
+          <span class="status-label">Turn Order</span>
+          <span id="header-order">—</span>
+        </div>
+      </div>
       <div class="header-controls">
         <label>
           Active Empire
@@ -22,6 +36,18 @@
     </header>
 
     <main>
+      <section class="panel">
+        <h2>Galactic Overview</h2>
+        <p class="muted">Quick view of each seat’s controlled empires, resources, and systems.</p>
+        <div class="form-row">
+          <label>
+            Select Seat
+            <select id="player-seat"></select>
+          </label>
+        </div>
+        <div id="player-summary" class="grid two"></div>
+      </section>
+
       <section class="panel">
         <h2>Round &amp; Phase</h2>
         <div class="grid two">
@@ -41,35 +67,12 @@
       </section>
 
       <section class="panel">
-        <h2>Game Setup</h2>
-        <p class="muted">Choose how many players and which NPC factions are in this session. This will reset seats and initiative order.</p>
-        <div id="setup-form" class="form-row"></div>
-      </section>
-
-      <section class="panel">
         <h2>Initiative</h2>
         <div id="initiative-order" class="initiative-order"></div>
         <div class="initiative-controls">
           <div id="initiative-selects" class="grid three"></div>
           <button id="random-initiative" class="primary">Random Initiative</button>
         </div>
-      </section>
-
-      <section class="panel">
-        <h2>Seats</h2>
-        <div id="seats" class="grid three"></div>
-      </section>
-
-      <section class="panel">
-        <h2>Player Interface</h2>
-        <p class="muted">Quick view of each seat’s controlled empires, resources, and systems.</p>
-        <div class="form-row">
-          <label>
-            Select Seat
-            <select id="player-seat"></select>
-          </label>
-        </div>
-        <div id="player-summary" class="grid two"></div>
       </section>
 
       <section class="panel">
@@ -116,6 +119,17 @@
           </label>
           <button id="reset-state" class="danger">Reset to Defaults</button>
         </div>
+      </section>
+
+      <section class="panel">
+        <h2>Seats</h2>
+        <div id="seats" class="grid three"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Game Setup</h2>
+        <p class="muted">Choose how many players and which NPC factions are in this session. This will reset seats and initiative order.</p>
+        <div id="setup-form" class="form-row"></div>
       </section>
     </main>
 

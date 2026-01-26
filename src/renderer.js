@@ -114,6 +114,9 @@ const elements = {
   setupForm: document.getElementById('setup-form'),
   playerSeat: document.getElementById('player-seat'),
   playerSummary: document.getElementById('player-summary'),
+  headerRound: document.getElementById('header-round'),
+  headerPhase: document.getElementById('header-phase'),
+  headerOrder: document.getElementById('header-order'),
   openEarnings: document.getElementById('open-earnings'),
   earningsModal: document.getElementById('earnings-modal'),
   earningsBreakdown: document.getElementById('earnings-breakdown'),
@@ -393,16 +396,6 @@ function adjustCounter(empireId, key, delta) {
   renderEmpires();
 }
 
-function adjustSeatCounter(seatId, key, delta) {
-  const seat = state.seats.find((item) => item.id === seatId);
-  if (!seat) return;
-  pushHistory();
-  seat[key] = Math.max(0, (seat[key] || 0) + delta);
-  saveState();
-  renderSeats();
-  renderPlayerInterface();
-}
-
 function getEmpireColor(empireId) {
   const empire = state.empires.find((item) => item.id === empireId);
   if (!empire) return '#2d3758';
@@ -522,6 +515,12 @@ function calculateTradeTotals(seatId) {
 function renderPhase() {
   elements.roundValue.textContent = state.round;
   elements.phaseValue.textContent = state.phase;
+  if (elements.headerRound) {
+    elements.headerRound.textContent = state.round;
+  }
+  if (elements.headerPhase) {
+    elements.headerPhase.textContent = state.phase;
+  }
 }
 
 function renderActiveEmpire() {
@@ -577,6 +576,10 @@ function renderInitiative() {
   elements.initiativeOrder.textContent = order
     .map((seat) => seat.name)
     .join(' > ');
+  if (elements.headerOrder) {
+    elements.headerOrder.textContent =
+      order.map((seat) => seat.name).join(' > ') || '—';
+  }
 
   elements.initiativeSelects.innerHTML = '';
   state.seats.forEach((seat) => {
@@ -679,37 +682,10 @@ function renderSeats() {
         <input type="text" value="${seat.name}" />
       </label>
       <p>Initiative Rank: ${seat.initiative}</p>
-      <h4>Fleet Counters</h4>
-      ${[
-        { key: 'attackShuttles', label: 'Attack Shuttles' },
-        { key: 'frigates', label: 'Frigates' },
-        { key: 'capitalShips', label: 'Capital Ships' }
-      ]
-        .map(
-          (item) => `
-          <div class="resource-row">
-            <span>${item.label}: ${seat[item.key] || 0}</span>
-            <div class="resource-buttons">
-              <button data-seat-counter="${item.key}" data-delta="1">+</button>
-              <button data-seat-counter="${item.key}" data-delta="-1">-</button>
-            </div>
-          </div>
-        `
-        )
-        .join('')}
     `;
     const input = card.querySelector('input');
     input.addEventListener('change', (event) => {
       updateSeatName(seat.id, event.target.value.trim() || seat.name);
-    });
-    card.querySelectorAll('button[data-seat-counter]').forEach((button) => {
-      button.addEventListener('click', () => {
-        adjustSeatCounter(
-          seat.id,
-          button.dataset.seatCounter,
-          Number(button.dataset.delta)
-        );
-      });
     });
     elements.seats.appendChild(card);
   });
