@@ -28,6 +28,7 @@
         <button class="nav-btn" data-target="turn">Turn Ops</button>
         <button class="nav-btn" data-target="tech">Tech Grid</button>
         <button class="nav-btn" data-target="log">Captain's Log</button>
+        <button class="nav-btn" data-target="settings">Settings</button>
       </nav>
     </header>
 
@@ -40,25 +41,39 @@
             priorities, automates resource math, and keeps the table in sync.
           </p>
           <div class="quick-actions">
-            <button class="cta" id="init-turn">Start New Round</button>
-            <button class="ghost" id="save-state">Snapshot Game State</button>
+            <button class="cta" id="init-turn">Advance Round</button>
+            <button class="ghost" id="save-state">Save Snapshot</button>
+            <button class="ghost" id="load-state">Load Snapshot</button>
           </div>
+          <div class="status-banner" id="status-banner">All systems nominal.</div>
         </div>
         <div class="status-grid">
           <div class="status-card">
             <h3>Current Round</h3>
-            <p class="status-value" id="round-value">4</p>
-            <span class="status-label">Sector expansion phase</span>
+            <div class="status-value" id="round-value">4</div>
+            <div class="status-controls">
+              <button class="ghost tiny" id="round-decrease">-</button>
+              <button class="ghost tiny" id="round-increase">+</button>
+            </div>
           </div>
           <div class="status-card">
-            <h3>Initiative</h3>
-            <p class="status-value" id="initiative-value">Federation</p>
-            <span class="status-label">Next: Klingon</span>
+            <h3>Initiative Order</h3>
+            <ol class="initiative-list" id="initiative-list">
+              <li class="active">Federation</li>
+              <li>Klingon</li>
+              <li>Romulan</li>
+            </ol>
+            <button class="cta tiny" id="advance-initiative">Next Player</button>
           </div>
           <div class="status-card">
             <h3>Galactic Tension</h3>
-            <p class="status-value" id="tension-value">Moderate</p>
-            <span class="status-label">3 unresolved conflicts</span>
+            <select id="tension-select">
+              <option>Low</option>
+              <option selected>Moderate</option>
+              <option>High</option>
+              <option>Critical</option>
+            </select>
+            <span class="status-label" id="tension-note">3 unresolved conflicts</span>
           </div>
         </div>
       </section>
@@ -68,43 +83,10 @@
           <h2>Faction Command Center</h2>
           <p>Track resources, production, and flagship upgrades for every empire.</p>
         </header>
-        <div class="faction-grid">
-          <article class="faction-card">
-            <div class="faction-header">
-              <h3>United Federation of Planets</h3>
-              <span class="pill">Diplomacy</span>
-            </div>
-            <ul>
-              <li>Energy: <strong id="fed-energy">8</strong></li>
-              <li>Production: <strong id="fed-production">6</strong></li>
-              <li>Research: <strong id="fed-research">5</strong></li>
-            </ul>
-            <button class="ghost" data-faction="federation">Adjust Resources</button>
-          </article>
-          <article class="faction-card">
-            <div class="faction-header">
-              <h3>Klingon Empire</h3>
-              <span class="pill">Aggression</span>
-            </div>
-            <ul>
-              <li>Energy: <strong id="klingon-energy">7</strong></li>
-              <li>Production: <strong id="klingon-production">7</strong></li>
-              <li>Research: <strong id="klingon-research">3</strong></li>
-            </ul>
-            <button class="ghost" data-faction="klingon">Adjust Resources</button>
-          </article>
-          <article class="faction-card">
-            <div class="faction-header">
-              <h3>Romulan Star Empire</h3>
-              <span class="pill">Intrigue</span>
-            </div>
-            <ul>
-              <li>Energy: <strong id="romulan-energy">6</strong></li>
-              <li>Production: <strong id="romulan-production">5</strong></li>
-              <li>Research: <strong id="romulan-research">6</strong></li>
-            </ul>
-            <button class="ghost" data-faction="romulan">Adjust Resources</button>
-          </article>
+        <div class="faction-grid" id="faction-grid"></div>
+        <div class="panel-actions">
+          <button class="ghost" id="add-faction">Add Custom Faction</button>
+          <button class="ghost" id="reset-factions">Reset Factions</button>
         </div>
       </section>
 
@@ -116,27 +98,30 @@
         <div class="turn-grid">
           <div class="turn-card">
             <h3>Phase Tracker</h3>
-            <ol id="phase-list">
-              <li class="active">Command Phase</li>
-              <li>Movement Phase</li>
-              <li>Research Phase</li>
-              <li>Production Phase</li>
-              <li>End Phase</li>
-            </ol>
-            <button class="cta" id="advance-phase">Advance Phase</button>
+            <ul class="phase-list" id="phase-list"></ul>
+            <div class="panel-actions">
+              <button class="cta" id="advance-phase">Advance Phase</button>
+              <button class="ghost" id="reset-phases">Reset Phases</button>
+            </div>
           </div>
           <div class="turn-card">
             <h3>Combat Assistant</h3>
-            <p>Roll attack and defense dice with tension-modifiers.</p>
+            <p>Roll attack and defense dice with tension modifiers.</p>
             <div class="dice-row">
-              <input id="dice-count" type="number" min="1" max="10" value="3" />
+              <input id="dice-count" type="number" min="1" max="12" value="3" />
+              <input id="dice-mod" type="number" min="-3" max="3" value="0" />
               <button class="ghost" id="roll-dice">Roll Dice</button>
             </div>
             <div class="dice-results" id="dice-results">Awaiting orders...</div>
+            <ul class="dice-log" id="dice-log"></ul>
           </div>
           <div class="turn-card">
             <h3>Resource Calculator</h3>
             <div class="calc">
+              <label>
+                Base Production
+                <input id="base-production" type="number" min="0" value="6" />
+              </label>
               <label>
                 New Systems
                 <input id="systems" type="number" min="0" value="2" />
@@ -156,22 +141,10 @@
           <h2>Technology Grid</h2>
           <p>Plan your research path and unlock synergy between tech cards.</p>
         </header>
-        <div class="tech-grid">
-          <div class="tech-card">
-            <h3>Starfleet Engineering</h3>
-            <p>Boost flagship shields and unlock advanced command protocols.</p>
-            <button class="ghost" data-tech="engineering">Queue Research</button>
-          </div>
-          <div class="tech-card">
-            <h3>Disruptor Arrays</h3>
-            <p>Increase attack dice and unlock ambush tactics.</p>
-            <button class="ghost" data-tech="disruptor">Queue Research</button>
-          </div>
-          <div class="tech-card">
-            <h3>Cloaking Matrix</h3>
-            <p>Reduce detection ranges and surprise enemy fleets.</p>
-            <button class="ghost" data-tech="cloak">Queue Research</button>
-          </div>
+        <div class="tech-grid" id="tech-grid"></div>
+        <div class="panel-actions">
+          <input id="tech-input" type="text" placeholder="Add custom tech card" />
+          <button class="ghost" id="add-tech">Add Tech</button>
         </div>
       </section>
 
@@ -188,10 +161,26 @@
               <button class="ghost" id="clear-log">Clear Log</button>
             </div>
           </div>
-          <ul id="log-list" class="log-list">
-            <li class="log-item">Stardate 2401.2 — Federation brokered peace on Rigel VII.</li>
-            <li class="log-item">Stardate 2401.4 — Klingon fleet encountered unknown anomaly.</li>
-          </ul>
+          <ul id="log-list" class="log-list"></ul>
+        </div>
+      </section>
+
+      <section id="settings" class="panel">
+        <header class="panel-header">
+          <h2>Game Settings</h2>
+          <p>Export and import your game state to share between devices or save a backup.</p>
+        </header>
+        <div class="settings-grid">
+          <div>
+            <label class="label">Export</label>
+            <textarea id="export-output" readonly></textarea>
+            <button class="ghost" id="copy-export">Copy Export</button>
+          </div>
+          <div>
+            <label class="label">Import</label>
+            <textarea id="import-input" placeholder="Paste a previously exported JSON snapshot here..."></textarea>
+            <button class="cta" id="import-state">Import Snapshot</button>
+          </div>
         </div>
       </section>
     </main>
@@ -200,20 +189,16 @@
       <p>Designed for tabletop commanders. Engage!</p>
     </footer>
 
-    <dialog id="resource-dialog">
+    <dialog id="faction-dialog">
       <form method="dialog" class="dialog-content">
-        <h3 id="dialog-title">Adjust Resources</h3>
+        <h3 id="dialog-title">Add Custom Faction</h3>
         <label>
-          Energy
-          <input id="dialog-energy" type="number" min="0" />
+          Faction Name
+          <input id="dialog-name" type="text" required />
         </label>
         <label>
-          Production
-          <input id="dialog-production" type="number" min="0" />
-        </label>
-        <label>
-          Research
-          <input id="dialog-research" type="number" min="0" />
+          Playstyle Tag
+          <input id="dialog-tag" type="text" placeholder="Diplomacy, Aggression, Intrigue..." />
         </label>
         <menu>
           <button value="cancel" class="ghost">Cancel</button>
