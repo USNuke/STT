@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Star Trek Ascendancy Companion</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="starfield"></div>
+    <header class="app-header">
+      <div class="brand">
+        <span class="badge">UFP</span>
+        <div>
+          <h1>Star Trek Ascendancy Companion</h1>
+          <p class="subtitle">Command, calculate, and chronicle your journey across the galaxy.</p>
+        </div>
+      </div>
+      <nav class="command-nav">
+        <button class="nav-btn" data-target="overview">Overview</button>
+        <button class="nav-btn" data-target="factions">Factions</button>
+        <button class="nav-btn" data-target="turn">Turn Ops</button>
+        <button class="nav-btn" data-target="tech">Tech Grid</button>
+        <button class="nav-btn" data-target="log">Captain's Log</button>
+        <button class="nav-btn" data-target="settings">Settings</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="overview" class="panel hero">
+        <div>
+          <h2>Mission Control</h2>
+          <p>
+            Keep every decision aligned with the Prime Directive. The companion app organizes strategic
+            priorities, automates resource math, and keeps the table in sync.
+          </p>
+          <div class="quick-actions">
+            <button class="cta" id="init-turn">Advance Round</button>
+            <button class="ghost" id="save-state">Save Snapshot</button>
+            <button class="ghost" id="load-state">Load Snapshot</button>
+          </div>
+          <div class="status-banner" id="status-banner">All systems nominal.</div>
+        </div>
+        <div class="status-grid">
+          <div class="status-card">
+            <h3>Current Round</h3>
+            <div class="status-value" id="round-value">4</div>
+            <div class="status-controls">
+              <button class="ghost tiny" id="round-decrease">-</button>
+              <button class="ghost tiny" id="round-increase">+</button>
+            </div>
+          </div>
+          <div class="status-card">
+            <h3>Initiative Order</h3>
+            <ol class="initiative-list" id="initiative-list">
+              <li class="active">Federation</li>
+              <li>Klingon</li>
+              <li>Romulan</li>
+            </ol>
+            <button class="cta tiny" id="advance-initiative">Next Player</button>
+          </div>
+          <div class="status-card">
+            <h3>Galactic Tension</h3>
+            <select id="tension-select">
+              <option>Low</option>
+              <option selected>Moderate</option>
+              <option>High</option>
+              <option>Critical</option>
+            </select>
+            <span class="status-label" id="tension-note">3 unresolved conflicts</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="factions" class="panel">
+        <header class="panel-header">
+          <h2>Faction Command Center</h2>
+          <p>Track resources, production, and flagship upgrades for every empire.</p>
+        </header>
+        <div class="faction-grid" id="faction-grid"></div>
+        <div class="panel-actions">
+          <button class="ghost" id="add-faction">Add Custom Faction</button>
+          <button class="ghost" id="reset-factions">Reset Factions</button>
+        </div>
+      </section>
+
+      <section id="turn" class="panel">
+        <header class="panel-header">
+          <h2>Turn Operations</h2>
+          <p>Guide the table through each phase with automated prompts and dice utilities.</p>
+        </header>
+        <div class="turn-grid">
+          <div class="turn-card">
+            <h3>Phase Tracker</h3>
+            <ul class="phase-list" id="phase-list"></ul>
+            <div class="panel-actions">
+              <button class="cta" id="advance-phase">Advance Phase</button>
+              <button class="ghost" id="reset-phases">Reset Phases</button>
+            </div>
+          </div>
+          <div class="turn-card">
+            <h3>Combat Assistant</h3>
+            <p>Roll attack and defense dice with tension modifiers.</p>
+            <div class="dice-row">
+              <input id="dice-count" type="number" min="1" max="12" value="3" />
+              <input id="dice-mod" type="number" min="-3" max="3" value="0" />
+              <button class="ghost" id="roll-dice">Roll Dice</button>
+            </div>
+            <div class="dice-results" id="dice-results">Awaiting orders...</div>
+            <ul class="dice-log" id="dice-log"></ul>
+          </div>
+          <div class="turn-card">
+            <h3>Resource Calculator</h3>
+            <div class="calc">
+              <label>
+                Base Production
+                <input id="base-production" type="number" min="0" value="6" />
+              </label>
+              <label>
+                New Systems
+                <input id="systems" type="number" min="0" value="2" />
+              </label>
+              <label>
+                Production Bonus
+                <input id="bonus" type="number" min="0" value="1" />
+              </label>
+            </div>
+            <div class="calc-total">Projected Production: <strong id="production-total">9</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tech" class="panel">
+        <header class="panel-header">
+          <h2>Technology Grid</h2>
+          <p>Plan your research path and unlock synergy between tech cards.</p>
+        </header>
+        <div class="tech-grid" id="tech-grid"></div>
+        <div class="panel-actions">
+          <input id="tech-input" type="text" placeholder="Add custom tech card" />
+          <button class="ghost" id="add-tech">Add Tech</button>
+        </div>
+      </section>
+
+      <section id="log" class="panel">
+        <header class="panel-header">
+          <h2>Captain's Log</h2>
+          <p>Record key events and recall critical decisions on demand.</p>
+        </header>
+        <div class="log-layout">
+          <div>
+            <textarea id="log-entry" placeholder="Record diplomatic agreements, conflicts, or discoveries..."></textarea>
+            <div class="quick-actions">
+              <button class="cta" id="add-log">Add Entry</button>
+              <button class="ghost" id="clear-log">Clear Log</button>
+            </div>
+          </div>
+          <ul id="log-list" class="log-list"></ul>
+        </div>
+      </section>
+
+      <section id="settings" class="panel">
+        <header class="panel-header">
+          <h2>Game Settings</h2>
+          <p>Export and import your game state to share between devices or save a backup.</p>
+        </header>
+        <div class="settings-grid">
+          <div>
+            <label class="label">Export</label>
+            <textarea id="export-output" readonly></textarea>
+            <button class="ghost" id="copy-export">Copy Export</button>
+          </div>
+          <div>
+            <label class="label">Import</label>
+            <textarea id="import-input" placeholder="Paste a previously exported JSON snapshot here..."></textarea>
+            <button class="cta" id="import-state">Import Snapshot</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Designed for tabletop commanders. Engage!</p>
+    </footer>
+
+    <dialog id="faction-dialog">
+      <form method="dialog" class="dialog-content">
+        <h3 id="dialog-title">Add Custom Faction</h3>
+        <label>
+          Faction Name
+          <input id="dialog-name" type="text" required />
+        </label>
+        <label>
+          Playstyle Tag
+          <input id="dialog-tag" type="text" placeholder="Diplomacy, Aggression, Intrigue..." />
+        </label>
+        <menu>
+          <button value="cancel" class="ghost">Cancel</button>
+          <button value="confirm" class="cta">Save</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
