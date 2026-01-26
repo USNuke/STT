@@ -16,7 +16,7 @@ The app focuses on bookkeeping: seats, empires, systems, resources, phases, and 
 
 ## Features (Playtest v1)
 
-- Up to five player seats plus two NPC seats (Borg and Dominion).
+- Configurable player count (1–5) with optional Borg/Dominion NPC seats.
 - Empire tracking with civilization presets and active empire theming.
 - Star system tracking with editable node values and ownership.
 - Round and phase controls with initiative ordering.

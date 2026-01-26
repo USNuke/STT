@@ -29,81 +29,64 @@ const QUADRANTS = ['Alpha', 'Beta'];
 const TRADE_TYPES = ['Production', 'Research', 'Culture'];
 const OWNER_STATUSES = ['None', 'Pre-War', 'Warp 1', 'Warp 2', 'Warp 3'];
 
+const buildSeats = ({ playerCount, includeBorg, includeDominion }) => {
+  const seats = Array.from({ length: playerCount }, (_, index) => ({
+    id: `seat-${index + 1}`,
+    name: `Player ${index + 1}`,
+    initiative: index + 1,
+    isNpc: false,
+    attackShuttles: 0,
+    frigates: 0,
+    capitalShips: 0
+  }));
+
+  if (includeBorg) {
+    seats.push({
+      id: 'seat-borg',
+      name: 'Borg NPC',
+      initiative: seats.length + 1,
+      isNpc: true,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    });
+  }
+
+  if (includeDominion) {
+    seats.push({
+      id: 'seat-dominion',
+      name: 'Dominion NPC',
+      initiative: seats.length + 1,
+      isNpc: true,
+      attackShuttles: 0,
+      frigates: 0,
+      capitalShips: 0
+    });
+  }
+
+  return seats;
+};
+
 const defaultState = () => ({
   round: 1,
   phase: 'Initiative',
-  seats: [
-    {
-      id: 'seat-1',
-      name: 'Player 1',
-      initiative: 1,
-      isNpc: false,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    },
-    {
-      id: 'seat-2',
-      name: 'Player 2',
-      initiative: 2,
-      isNpc: false,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    },
-    {
-      id: 'seat-3',
-      name: 'Player 3',
-      initiative: 3,
-      isNpc: false,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    },
-    {
-      id: 'seat-4',
-      name: 'Player 4',
-      initiative: 4,
-      isNpc: false,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    },
-    {
-      id: 'seat-5',
-      name: 'Player 5',
-      initiative: 5,
-      isNpc: false,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    },
-    {
-      id: 'seat-6',
-      name: 'Borg NPC',
-      initiative: 6,
-      isNpc: true,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    },
-    {
-      id: 'seat-7',
-      name: 'Dominion NPC',
-      initiative: 7,
-      isNpc: true,
-      attackShuttles: 0,
-      frigates: 0,
-      capitalShips: 0
-    }
-  ],
+  seats: buildSeats({
+    playerCount: 3,
+    includeBorg: false,
+    includeDominion: false
+  }),
   empires: [],
   systems: [],
   activeEmpireId: null,
   playerSeatId: 'seat-1',
   tradeAgreements: [],
   history: [],
-  logs: []
+  logs: [],
+  setup: {
+    playerCount: 3,
+    includeBorg: false,
+    includeDominion: false
+  }
 });
 
 let state = loadState();
@@ -128,6 +111,7 @@ const elements = {
   systems: document.getElementById('systems'),
   tradeForm: document.getElementById('trade-form'),
   tradeList: document.getElementById('trade-list'),
+  setupForm: document.getElementById('setup-form'),
   playerSeat: document.getElementById('player-seat'),
   playerSummary: document.getElementById('player-summary'),
   openEarnings: document.getElementById('open-earnings'),
@@ -187,19 +171,36 @@ function normalizeState(imported) {
     ...imported
   };
 
+  const normalizedSetup = {
+    playerCount: Math.max(1, Math.min(5, Number(imported.setup?.playerCount) || 3)),
+    includeBorg: Boolean(imported.setup?.includeBorg),
+    includeDominion: Boolean(imported.setup?.includeDominion)
+  };
+
+  normalized.setup = normalizedSetup;
+
+  const fallbackSeats = buildSeats(normalizedSetup);
   const importedSeats = imported.seats || [];
-  const seatCount = Math.max(importedSeats.length, base.seats.length);
+  const seatCount = Math.max(importedSeats.length, fallbackSeats.length);
+  const seatMap = new Map();
+
+  importedSeats.forEach((seat) => {
+    if (seat?.id) {
+      seatMap.set(seat.id, seat);
+    }
+  });
+
   normalized.seats = Array.from({ length: seatCount }, (_, index) => {
-    const seat = importedSeats[index] || base.seats[index] || {};
-    const fallback = base.seats[index] || {};
+    const fallback = fallbackSeats[index] || {};
+    const seat = seatMap.get(fallback.id) || importedSeats[index] || fallback;
     return {
       id: seat.id || fallback.id || `seat-${index + 1}`,
       name:
         seat.name ||
         fallback.name ||
-        `${index < 5 ? 'Player' : 'NPC'} ${index + 1}`,
+        `${index < normalizedSetup.playerCount ? 'Player' : 'NPC'} ${index + 1}`,
       initiative: seat.initiative || fallback.initiative || index + 1,
-      isNpc: seat.isNpc ?? fallback.isNpc ?? index >= 5,
+      isNpc: seat.isNpc ?? fallback.isNpc ?? index >= normalizedSetup.playerCount,
       attackShuttles: Math.max(0, Number(seat.attackShuttles) || 0),
       frigates: Math.max(0, Number(seat.frigates) || 0),
       capitalShips: Math.max(0, Number(seat.capitalShips) || 0)
@@ -248,8 +249,12 @@ function normalizeState(imported) {
   normalized.activeEmpireId =
     imported.activeEmpireId || normalized.empires[0]?.id || null;
 
+  const playerSeats = normalized.seats.filter((seat) => !seat.isNpc);
+  const preferredSeatId = imported.playerSeatId || normalized.seats[0]?.id;
   normalized.playerSeatId =
-    imported.playerSeatId || normalized.seats[0]?.id || base.seats[0].id;
+    playerSeats.find((seat) => seat.id === preferredSeatId)?.id ||
+    playerSeats[0]?.id ||
+    base.seats[0].id;
 
   normalized.tradeAgreements = (imported.tradeAgreements || []).map(
     (agreement, index) => ({
@@ -596,6 +601,69 @@ function renderInitiative() {
     container.appendChild(select);
     elements.initiativeSelects.appendChild(container);
   });
+}
+
+function renderSetupForm() {
+  if (!elements.setupForm) return;
+  elements.setupForm.innerHTML = '';
+
+  const playerSelect = document.createElement('select');
+  [1, 2, 3, 4, 5].forEach((count) => {
+    const option = document.createElement('option');
+    option.value = String(count);
+    option.textContent = `${count} Player${count === 1 ? '' : 's'}`;
+    if (state.setup?.playerCount === count) {
+      option.selected = true;
+    }
+    playerSelect.appendChild(option);
+  });
+
+  const borgLabel = document.createElement('label');
+  borgLabel.className = 'checkbox-label';
+  borgLabel.innerHTML = `
+    <input type="checkbox" id="setup-borg" ${
+      state.setup?.includeBorg ? 'checked' : ''
+    } />
+    Borg NPC
+  `;
+
+  const dominionLabel = document.createElement('label');
+  dominionLabel.className = 'checkbox-label';
+  dominionLabel.innerHTML = `
+    <input type="checkbox" id="setup-dominion" ${
+      state.setup?.includeDominion ? 'checked' : ''
+    } />
+    Dominion NPC
+  `;
+
+  const applyButton = document.createElement('button');
+  applyButton.className = 'primary';
+  applyButton.textContent = 'Apply Setup';
+
+  applyButton.addEventListener('click', () => {
+    const playerCount = Math.max(1, Math.min(5, Number(playerSelect.value) || 3));
+    const includeBorg = borgLabel.querySelector('input')?.checked || false;
+    const includeDominion =
+      dominionLabel.querySelector('input')?.checked || false;
+    pushHistory();
+    state.setup = { playerCount, includeBorg, includeDominion };
+    state.seats = buildSeats(state.setup);
+    state.playerSeatId = state.seats[0]?.id || null;
+    state.empires.forEach((empire) => {
+      if (!state.seats.find((seat) => seat.id === empire.seatId)) {
+        empire.seatId = state.seats[0]?.id || empire.seatId;
+      }
+    });
+    saveState();
+    renderAll();
+    logEntry(
+      `Game setup updated: ${playerCount} player(s), Borg ${
+        includeBorg ? 'on' : 'off'
+      }, Dominion ${includeDominion ? 'on' : 'off'}.`
+    );
+  });
+
+  elements.setupForm.append(playerSelect, borgLabel, dominionLabel, applyButton);
 }
 
 function renderSeats() {
@@ -1259,6 +1327,7 @@ function renderLogs() {
 
 function renderAll() {
   renderPhase();
+  renderSetupForm();
   renderActiveEmpire();
   renderInitiative();
   renderSeats();
@@ -1274,7 +1343,7 @@ function renderAll() {
 
 function renderPlayerInterface() {
   elements.playerSeat.innerHTML = '';
-  state.seats.forEach((seat, index) => {
+  getPlayerSeats().forEach((seat, index) => {
     const option = document.createElement('option');
     option.value = seat.id;
     option.textContent = formatSeatOptionLabel(seat, index);
