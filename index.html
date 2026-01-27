@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Borg Collective Dice AI Assistant</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050806;
+      --panel: #0b140e;
+      --accent: #3cff83;
+      --accent-dim: #1fae57;
+      --text: #e7ffee;
+      --warn: #ffb347;
+      --danger: #ff5d5d;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #0d2417, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 2.5rem 2rem 1.5rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(60, 255, 131, 0.2);
+      background: rgba(5, 10, 7, 0.85);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: 0.2rem;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    header p {
+      margin: 0.75rem 0 0;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    main {
+      padding: 2rem;
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid rgba(60, 255, 131, 0.2);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 0 24px rgba(31, 174, 87, 0.1);
+    }
+
+    section h2 {
+      margin-top: 0;
+      color: var(--accent);
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+    }
+
+    .status-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      background: rgba(3, 7, 4, 0.6);
+    }
+
+    .status-row strong {
+      color: var(--accent);
+    }
+
+    .controls {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    button {
+      background: var(--accent);
+      color: #042010;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 12px rgba(60, 255, 131, 0.35);
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    button.warning {
+      background: var(--warn);
+      color: #1a0f00;
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #1c0000;
+    }
+
+    .inline {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    input, select {
+      background: #050c08;
+      color: var(--text);
+      border: 1px solid rgba(60, 255, 131, 0.3);
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      width: 100%;
+    }
+
+    input[type="number"] {
+      width: 80px;
+    }
+
+    .log {
+      max-height: 520px;
+      overflow-y: auto;
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      background: rgba(1, 4, 2, 0.7);
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(60, 255, 131, 0.1);
+    }
+
+    .log-entry {
+      margin-bottom: 0.5rem;
+    }
+
+    .log-entry span {
+      display: block;
+      color: rgba(231, 255, 238, 0.65);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(60, 255, 131, 0.4);
+      color: var(--accent);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+    }
+
+    .highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    footer {
+      padding: 1.5rem;
+      text-align: center;
+      color: rgba(231, 255, 238, 0.5);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Borg Collective Dice AI Assistant</h1>
+    <p>Standalone board-driven engine to resolve every Borg phase, dice table, and escalation effect.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Collective Status</h2>
+      <div class="status-grid" id="statusGrid"></div>
+      <div class="inline" style="margin-top: 1rem;">
+        <button class="secondary" id="resetState">Reset Collective</button>
+        <button class="warning" id="endRound">End Round</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Borg Round Controls</h2>
+      <div class="controls">
+        <button id="runFullRound">Run Full Borg Round</button>
+        <button class="secondary" id="runAdaptation">Adaptation Phase</button>
+        <button class="secondary" id="runReallocation">Power Reallocation</button>
+        <button class="secondary" id="runProduction">Production Phase</button>
+        <button class="secondary" id="runActivation">Activation Phase</button>
+        <label class="inline">
+          <input type="checkbox" id="useCollapse" checked /> Use Collapse / Persistence Phase
+        </label>
+        <button class="secondary" id="runCollapse">Collapse / Persistence</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Operational Inputs</h2>
+      <div class="controls">
+        <div class="inline">
+          <label for="enemyShips">Enemy ships in target sector</label>
+          <input type="number" id="enemyShips" min="0" value="0" />
+        </div>
+        <label class="inline">
+          <input type="checkbox" id="outnumbered" /> Entering outnumbered sector
+        </label>
+        <div class="inline">
+          <label for="maxCubes">Max Borg Cubes (0 = unlimited)</label>
+          <input type="number" id="maxCubes" min="0" value="0" />
+        </div>
+        <div class="inline">
+          <label for="integritySelect">Mothership Integrity</label>
+          <select id="integritySelect">
+            <option value="16">16 - Full Collective</option>
+            <option value="12">12 - Adaptive Aggression</option>
+            <option value="8">8 - Desperation Mode</option>
+            <option value="4">4 - Final Assimilation Drive</option>
+          </select>
+        </div>
+        <button class="danger" id="applyIntegrityDrop">Apply Integrity Drop</button>
+      </div>
+    </section>
+
+    <section style="grid-column: span 2;">
+      <h2>Round Log</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <footer>Resistance is futile because it is inefficient.</footer>
+
+  <script>
+    const state = {
+      cubes: { engines: 4, weapons: 4, shields: 4, hull: 4 },
+      adaptationLevel: 0,
+      adaptationEffect: null,
+      assimilationStock: 0,
+      borgCubes: 1,
+      mothershipIntegrity: 16,
+      activationBonus: 0,
+      nextActivationBonus: 0,
+      collapseImmunity: false,
+      tempHullBonus: 0,
+      round: 1,
+    };
+
+    const logEl = document.getElementById("log");
+    const statusGrid = document.getElementById("statusGrid");
+    const integritySelect = document.getElementById("integritySelect");
+
+    const dice = (sides) => Math.floor(Math.random() * sides) + 1;
+
+    const log = (title, details = []) => {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.innerHTML = `<div class="highlight">${title}</div>`;
+      details.forEach((detail) => {
+        const span = document.createElement("span");
+        span.textContent = detail;
+        entry.appendChild(span);
+      });
+      logEl.prepend(entry);
+    };
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const moveCube = (from, to, reason) => {
+      if (state.cubes[from] <= 1) {
+        log(`${reason}: Illegal move blocked`, [`${from} has minimum cube count.`]);
+        return false;
+      }
+      if (state.cubes[to] >= 12) {
+        log(`${reason}: Illegal move blocked`, [`${to} already at maximum.`]);
+        return false;
+      }
+      state.cubes[from] -= 1;
+      state.cubes[to] += 1;
+      log(`${reason}: Power reallocation`, [`${from} → ${to}.`]);
+      return true;
+    };
+
+    const impulseSpeed = () => {
+      const engines = state.cubes.engines;
+      if (engines <= 3) return 1;
+      if (engines <= 6) return 2;
+      if (engines <= 9) return 3;
+      return 4;
+    };
+
+    const attackDice = () => {
+      const weapons = state.cubes.weapons;
+      if (weapons <= 3) return "D2 ×3";
+      if (weapons <= 5) return "D4 ×3";
+      if (weapons <= 7) return "D6 ×3";
+      if (weapons <= 9) return "D8 ×3";
+      if (weapons <= 11) return "D10 ×3";
+      return "D12 ×3";
+    };
+
+    const shieldReduction = () => {
+      const shields = state.cubes.shields;
+      if (shields <= 3) return -1;
+      if (shields <= 6) return -2;
+      if (shields <= 9) return -3;
+      return -4;
+    };
+
+    const hullRegen = () => {
+      const hull = state.cubes.hull + state.tempHullBonus;
+      if (hull <= 3) return "No regeneration";
+      if (hull <= 6) return "Regenerate 1";
+      if (hull <= 9) return "Regenerate 2";
+      return "Regenerate 3";
+    };
+
+    const renderStatus = () => {
+      const totalCubes = Object.values(state.cubes).reduce((sum, value) => sum + value, 0);
+      const hullTotal = state.cubes.hull + state.tempHullBonus;
+      const sanityCheck = totalCubes === 16
+        && Object.values(state.cubes).every((value) => value >= 1 && value <= 12);
+      const status = [
+        { label: "Round", value: state.round },
+        { label: "Engines Cubes", value: state.cubes.engines },
+        { label: "Weapons Cubes", value: state.cubes.weapons },
+        { label: "Shields Cubes", value: state.cubes.shields },
+        { label: "Hull Cubes", value: `${hullTotal}${state.tempHullBonus ? " (temp)" : ""}` },
+        { label: "Impulse Speed", value: impulseSpeed() },
+        { label: "Attack Dice", value: attackDice() },
+        { label: "Shield Reduction", value: shieldReduction() },
+        { label: "Hull Regen", value: hullRegen() },
+        { label: "Adaptation Level", value: state.adaptationLevel },
+        { label: "Adaptation Effect", value: state.adaptationEffect ?? "None" },
+        { label: "Assimilation Stock", value: state.assimilationStock },
+        { label: "Borg Cubes", value: state.borgCubes },
+        { label: "Mothership Integrity", value: state.mothershipIntegrity },
+        { label: "Activation Bonus", value: state.activationBonus },
+        { label: "Sanity Check", value: sanityCheck ? "Valid" : "Check Board", tag: sanityCheck ? "ok" : "warn" },
+      ];
+      statusGrid.innerHTML = "";
+      status.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "status-row";
+        row.innerHTML = `<span>${item.label}</span><strong>${item.value}</strong>`;
+        statusGrid.appendChild(row);
+      });
+    };
+
+    const runAdaptation = () => {
+      const roll = dice(6);
+      const details = [`Rolled d6 = ${roll}.`];
+      if (roll <= 2) {
+        state.adaptationEffect = null;
+      } else if (roll <= 4) {
+        state.adaptationLevel += 1;
+      } else if (roll === 5) {
+        state.adaptationLevel += 2;
+      } else {
+        state.adaptationLevel += 1;
+        const effectRoll = dice(6);
+        const effects = {
+          1: "+1 Hit to all Borg attacks",
+          2: "Reduce incoming hits by 1 per combat round",
+          3: "Regenerate 1 lost attack die after each combat round",
+          4: "+1 Impulse to all Cubes",
+          5: "+1 Assimilation Stock per enemy ship destroyed",
+          6: "One failed Hit reroll per combat round",
+        };
+        state.adaptationEffect = effects[effectRoll];
+        details.push(`Adaptation Effect d6 = ${effectRoll}: ${effects[effectRoll]}.`);
+      }
+      log("Adaptation Phase", details);
+      renderStatus();
+    };
+
+    const runReallocation = (source = "standard") => {
+      const roll = dice(6);
+      const details = [`Rolled d6 = ${roll}.`];
+      if (roll === 1) {
+        details.push("No change.");
+      } else if (roll === 2) {
+        moveCube("engines", "shields", "Reallocation");
+      } else if (roll === 3) {
+        moveCube("shields", "weapons", "Reallocation");
+      } else if (roll === 4) {
+        moveCube("weapons", "hull", "Reallocation");
+      } else if (roll === 5) {
+        moveCube("hull", "engines", "Reallocation");
+      } else {
+        for (let i = 0; i < 2; i += 1) {
+          let sourceRoll = dice(4);
+          let destRoll = dice(4);
+          while (destRoll === sourceRoll) {
+            destRoll = dice(4);
+          }
+          const map = ["engines", "weapons", "shields", "hull"];
+          moveCube(map[sourceRoll - 1], map[destRoll - 1], "Adaptive Shift");
+        }
+      }
+      log("Power Reallocation Phase", details);
+      renderStatus();
+    };
+
+    const buildBorgCube = (bonusAssimilation) => {
+      const maxCubes = Number(document.getElementById("maxCubes").value || 0);
+      if (maxCubes > 0 && state.borgCubes >= maxCubes) {
+        state.assimilationStock += bonusAssimilation;
+        log("Production", [`Build blocked at cap. Gained +${bonusAssimilation} AS.`]);
+        return;
+      }
+      state.borgCubes += 1;
+      if (bonusAssimilation) {
+        state.assimilationStock += bonusAssimilation;
+        log("Production", [`Built 1 Cube. +${bonusAssimilation} AS.`]);
+      } else {
+        log("Production", ["Built 1 Cube."]);
+      }
+    };
+
+    const reinforceHull = () => {
+      const sources = ["engines", "weapons", "shields"].filter((row) => state.cubes[row] > 1);
+      if (!sources.length) {
+        log("Reinforce", ["No legal cube to move to Hull."]);
+        return;
+      }
+      const maxValue = Math.max(...sources.map((row) => state.cubes[row]));
+      const candidates = sources.filter((row) => state.cubes[row] === maxValue);
+      const source = candidates[Math.floor(Math.random() * candidates.length)];
+      moveCube(source, "hull", "Reinforce Hull");
+    };
+
+    const runProduction = () => {
+      const roll = dice(12);
+      const details = [`Rolled d12 = ${roll}.`];
+      if (roll <= 2) {
+        state.assimilationStock += 3;
+        details.push("+3 Assimilation Stock.");
+      } else if (roll <= 4) {
+        buildBorgCube(2);
+      } else if (roll === 5) {
+        buildBorgCube(2);
+      } else if (roll === 6) {
+        if (state.assimilationStock >= 3) {
+          state.assimilationStock -= 3;
+          buildBorgCube(0);
+        } else {
+          state.assimilationStock += 1;
+          details.push("Not enough AS; +1 AS instead.");
+        }
+      } else if (roll <= 8) {
+        reinforceHull();
+      } else if (roll === 9) {
+        details.push("No production.");
+      } else if (roll === 10) {
+        const gain = Math.max(1, state.adaptationLevel);
+        state.assimilationStock += gain;
+        details.push(`+${gain} AS from Adaptation Level.`);
+      } else if (roll === 11) {
+        forcedAssimilationCheck();
+      } else {
+        state.assimilationStock += 3;
+        details.push("Escalation Surge: +3 AS.");
+        forcedAssimilationCheck();
+        state.nextActivationBonus += 1;
+        details.push("+1 Activation next round.");
+      }
+      log("Production Phase", details);
+      renderStatus();
+    };
+
+    const forcedAssimilationCheck = () => {
+      log("Forced Assimilation Check", [
+        "If a Cube is on a developed system, assimilate now.",
+        "Else if adjacent, move in and assimilate.",
+        "Else gain +2 AS.",
+      ]);
+      state.assimilationStock += 2;
+    };
+
+    const resolveTargetSelection = () => {
+      const enemyShips = Number(document.getElementById("enemyShips").value || 0);
+      const outnumbered = document.getElementById("outnumbered").checked;
+      let modifier = 0;
+      if (enemyShips >= 5) modifier += 4;
+      else if (enemyShips >= 3) modifier += 2;
+      if (state.adaptationLevel >= 3) modifier += 1;
+      if (outnumbered) modifier -= 2;
+      const roll = dice(20);
+      const result = clamp(roll + modifier, 1, 20);
+      const table = [
+        "Mining / Resource Lane",
+        "Mining / Resource Lane",
+        "Mining / Resource Lane",
+        "Mining / Resource Lane",
+        "Enemy Frigate Cluster",
+        "Enemy Frigate Cluster",
+        "Enemy Frigate Cluster",
+        "Enemy Frigate Cluster",
+        "Highest-Value Enemy Ship",
+        "Highest-Value Enemy Ship",
+        "Highest-Value Enemy Ship",
+        "Highest-Value Enemy Ship",
+        "Developed System",
+        "Developed System",
+        "Developed System",
+        "Developed System",
+        "Starbase / Fortification",
+        "Starbase / Fortification",
+        "Home System",
+        "Highest Density Threat",
+      ];
+      return { roll, modifier, result, target: table[result - 1] };
+    };
+
+    const resolveActionSelection = () => {
+      const roll = dice(12);
+      const table = {
+        1: "Advance",
+        2: "Engage",
+        3: "Assimilate System",
+        4: "Assimilate Lane",
+        5: "Interdict Lane",
+        6: "Coordinated Assault",
+        7: "Pressure Homeworld",
+        8: "Hunt Starbase",
+        9: "Cull Weak",
+        10: "Reinforce Hull",
+        11: "Assimilation Harvest",
+        12: "Overwhelm",
+      };
+      return { roll, action: table[roll] };
+    };
+
+    const runActivationPhase = () => {
+      const roll = dice(6);
+      const baseActivations = roll <= 2 ? 2 : roll <= 4 ? 3 : roll === 5 ? 4 : 5;
+      const totalActivations = baseActivations + state.activationBonus;
+      log("Activation Phase", [
+        `Rolled d6 = ${roll}.`,
+        `Base activations: ${baseActivations}.`,
+        `Activation bonus: +${state.activationBonus}.`,
+        `Total activations: ${totalActivations}.`,
+      ]);
+      for (let i = 1; i <= totalActivations; i += 1) {
+        const target = resolveTargetSelection();
+        const action = resolveActionSelection();
+        const details = [
+          `Activation ${i}: Target roll ${target.roll} (mod ${target.modifier}) → ${target.result}.`,
+          `Target: ${target.target}.`,
+          `Action roll d12 = ${action.roll} → ${action.action}.`,
+        ];
+        if (action.action === "Reinforce Hull") {
+          state.tempHullBonus += 1;
+          details.push("Hull reinforced (+1 cube until end of round).");
+        }
+        if (action.action === "Assimilation Harvest") {
+          const gain = state.cubes.hull + state.tempHullBonus;
+          state.assimilationStock += gain;
+          details.push(`Assimilation Harvest: +${gain} AS.`);
+        }
+        if (action.action === "Overwhelm") {
+          details.push("Overwhelm: +1 Impulse this activation.");
+        }
+        log("Activation Procedure", details);
+      }
+      renderStatus();
+    };
+
+    const runCollapsePhase = () => {
+      if (!document.getElementById("useCollapse").checked) {
+        log("Collapse Phase", ["Skipped (disabled)."]);
+        return;
+      }
+      if (state.collapseImmunity) {
+        log("Collapse Phase", ["Collapse penalties ignored this round."]);
+        state.collapseImmunity = false;
+        return;
+      }
+      const roll = dice(6);
+      const table = {
+        1: "Normal collapse",
+        2: "Normal collapse",
+        3: "Retain one key lane",
+        4: "Retain one key lane",
+        5: "Cubes immune to displacement",
+        6: "Ignore collapse",
+      };
+      log("Collapse / Persistence", [`Rolled d6 = ${roll}.`, table[roll]]);
+    };
+
+    const endRound = () => {
+      state.round += 1;
+      state.activationBonus = state.nextActivationBonus;
+      state.nextActivationBonus = 0;
+      state.tempHullBonus = 0;
+      state.adaptationEffect = null;
+      log("Round Complete", ["Temporary effects reset. Activation bonus carried forward."]);
+      renderStatus();
+    };
+
+    const applyIntegrityDrop = () => {
+      const selected = Number(integritySelect.value);
+      if (selected >= state.mothershipIntegrity) {
+        log("Mothership Integrity", ["No drop detected."]);
+        return;
+      }
+      state.mothershipIntegrity = selected;
+      log("Mothership Integrity", [
+        `Integrity dropped to ${selected}.`,
+        "Immediate Power Reallocation triggered.",
+        "+1 Activation next round.",
+        "Ignore collapse penalties for one round.",
+      ]);
+      state.nextActivationBonus += 1;
+      state.collapseImmunity = true;
+      runReallocation("Integrity Drop");
+      renderStatus();
+    };
+
+    const resetState = () => {
+      state.cubes = { engines: 4, weapons: 4, shields: 4, hull: 4 };
+      state.adaptationLevel = 0;
+      state.adaptationEffect = null;
+      state.assimilationStock = 0;
+      state.borgCubes = 1;
+      state.mothershipIntegrity = 16;
+      state.activationBonus = 0;
+      state.nextActivationBonus = 0;
+      state.collapseImmunity = false;
+      state.tempHullBonus = 0;
+      state.round = 1;
+      integritySelect.value = "16";
+      log("Collective Reset", ["Board restored to locked starting configuration."]);
+      renderStatus();
+    };
+
+    document.getElementById("runAdaptation").addEventListener("click", runAdaptation);
+    document.getElementById("runReallocation").addEventListener("click", runReallocation);
+    document.getElementById("runProduction").addEventListener("click", runProduction);
+    document.getElementById("runActivation").addEventListener("click", runActivationPhase);
+    document.getElementById("runCollapse").addEventListener("click", runCollapsePhase);
+    document.getElementById("runFullRound").addEventListener("click", () => {
+      runAdaptation();
+      runReallocation();
+      runProduction();
+      runActivationPhase();
+      runCollapsePhase();
+      endRound();
+    });
+    document.getElementById("resetState").addEventListener("click", resetState);
+    document.getElementById("endRound").addEventListener("click", endRound);
+    document.getElementById("applyIntegrityDrop").addEventListener("click", applyIntegrityDrop);
+
+    renderStatus();
+  </script>
+</body>
+</html>
