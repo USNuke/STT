@@ -206,6 +206,16 @@
       color: rgba(231, 255, 238, 0.7);
     }
 
+    .json-input {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .json-input textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
     .tabs {
       display: flex;
       gap: 0.5rem;
@@ -455,6 +465,15 @@
       </div>
     </section>
 
+    <section>
+      <h2>ChatGPT Action Intake</h2>
+      <div class="json-input">
+        <label for="jsonInput">Paste JSON action payload</label>
+        <textarea id="jsonInput" placeholder='{"message":"Borg Cube 015 Gamma, target nearest starbase.","phase":"Activation","target":"Starbase / Fortification"}'></textarea>
+        <button class="secondary" id="applyJsonAction">Apply JSON Action</button>
+      </div>
+    </section>
+
     <section style="grid-column: span 2;">
       <h2>Round Log</h2>
       <div class="log" id="log"></div>
@@ -634,6 +653,7 @@
     const rulesModal = document.getElementById("rulesModal");
     const phaseModal = document.getElementById("phaseModal");
     const undoButton = document.getElementById("undoAction");
+    const jsonInput = document.getElementById("jsonInput");
     const stateHistory = [];
     const lastStatusValues = {};
     const activePhase = { name: "None" };
@@ -730,6 +750,32 @@
 
     const setActivePhase = (phase) => {
       activePhase.name = phase;
+    };
+
+    const applyJsonAction = () => {
+      saveState();
+      let payload;
+      try {
+        payload = JSON.parse(jsonInput.value || "{}");
+      } catch (error) {
+        log("JSON Intake", ["Invalid JSON payload."]);
+        return;
+      }
+      if (payload.phase) {
+        setActivePhase(payload.phase);
+      }
+      if (payload.target) {
+        state.lastTarget = payload.target;
+      }
+      if (payload.message) {
+        state.narrative = payload.message;
+      }
+      log("JSON Intake", [
+        `Phase: ${payload.phase ?? "Unspecified"}.`,
+        `Target: ${payload.target ?? "Unspecified"}.`,
+        `Message: ${payload.message ?? "Unspecified"}.`,
+      ]);
+      renderStatus();
     };
 
     const moveCube = (from, to, reason) => {
@@ -1167,6 +1213,8 @@
       rulesModal.classList.remove("active");
       rulesModal.setAttribute("aria-hidden", "true");
     });
+
+    document.getElementById("applyJsonAction").addEventListener("click", applyJsonAction);
 
     document.getElementById("openPhaseGuide").addEventListener("click", () => {
       phaseModal.classList.add("active");
