@@ -26,6 +26,7 @@
       background: radial-gradient(circle at top, #0d2417, var(--bg));
       color: var(--text);
       min-height: 100vh;
+      perspective: 1200px;
     }
 
     header {
@@ -65,8 +66,8 @@
     }
 
     section:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 32px rgba(60, 255, 131, 0.2);
+      transform: translateY(-4px) rotateX(2deg) rotateY(-1deg);
+      box-shadow: 0 16px 32px rgba(5, 5, 5, 0.4), 0 0 32px rgba(60, 255, 131, 0.2);
     }
 
     section h2 {
@@ -89,6 +90,13 @@
       padding: 0.5rem 0.75rem;
       border-radius: 8px;
       background: rgba(3, 7, 4, 0.6);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transform-style: preserve-3d;
+    }
+
+    .status-row:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
     }
 
     .status-row strong {
@@ -109,10 +117,11 @@
       font-weight: 600;
       cursor: pointer;
       transition: transform 0.1s ease, box-shadow 0.1s ease;
+      transform-style: preserve-3d;
     }
 
     button:hover {
-      transform: translateY(-1px);
+      transform: translateY(-2px) scale(1.02);
       box-shadow: 0 0 12px rgba(60, 255, 131, 0.35);
     }
 
@@ -174,6 +183,71 @@
       border: 1px solid rgba(60, 255, 131, 0.1);
     }
 
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--panel);
+      border: 1px solid rgba(60, 255, 131, 0.3);
+      border-radius: 16px;
+      width: min(900px, 92vw);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      animation: popIn 0.2s ease-out;
+    }
+
+    .modal-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(60, 255, 131, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 1rem 1.5rem 1.5rem;
+      overflow-y: auto;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: rgba(231, 255, 238, 0.85);
+    }
+
+    .rules-section {
+      margin-bottom: 1rem;
+    }
+
+    .rules-section h3 {
+      margin: 0 0 0.35rem;
+      color: var(--accent);
+      font-size: 1rem;
+      letter-spacing: 0.05rem;
+      text-transform: uppercase;
+    }
+
+    .rules-section ul {
+      margin: 0.25rem 0 0;
+      padding-left: 1.2rem;
+    }
+
     .log-entry {
       margin-bottom: 0.5rem;
       animation: logFade 0.35s ease-out;
@@ -227,6 +301,17 @@
       }
     }
 
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
     footer {
       padding: 1.5rem;
       text-align: center;
@@ -247,12 +332,16 @@
       <div class="status-grid" id="statusGrid"></div>
       <div class="inline" style="margin-top: 1rem;">
         <button class="secondary" id="resetState">Reset Collective</button>
+        <button class="secondary" id="undoAction">Undo Last Action</button>
         <button class="warning" id="endRound">End Round</button>
       </div>
     </section>
 
     <section>
       <h2>Borg Round Controls</h2>
+      <div class="tabs" style="margin-bottom: 0.75rem;">
+        <button class="secondary" id="openRules">Rules Reference</button>
+      </div>
       <div class="controls">
         <button id="runFullRound">Run Full Borg Round</button>
         <button class="secondary" id="runAdaptation">Adaptation Phase</button>
@@ -304,6 +393,105 @@
 
   <footer>Resistance is futile because it is inefficient.</footer>
 
+  <div class="modal" id="rulesModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Rules Reference</h2>
+        <button class="secondary" id="closeRules">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="rules-section">
+          <h3>Borg Round Structure</h3>
+          <ul>
+            <li>Adaptation Phase (1d6)</li>
+            <li>Power Reallocation Phase (1d6)</li>
+            <li>Production Phase (1d12)</li>
+            <li>Activation Phase (1d6)</li>
+            <li>Collapse / Persistence Phase (optional)</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Mothership Board</h3>
+          <ul>
+            <li>Engines, Weapons, Shields, Hull (1–12 cubes each)</li>
+            <li>Global Integrity Track: 16 / 12 / 8 / 4</li>
+            <li>Starting configuration: 4 cubes in each row</li>
+            <li>Hard constraints: min 1 cube, max 12 cubes per row</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Adaptation Phase (1d6)</h3>
+          <ul>
+            <li>1–2: No change</li>
+            <li>3–4: Adaptation Level +1</li>
+            <li>5: Adaptation Level +2</li>
+            <li>6: Adaptation Level +1 and roll Adaptation Effect (1d6)</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Power Reallocation (1d6)</h3>
+          <ul>
+            <li>1: No change</li>
+            <li>2: Engines → Shields</li>
+            <li>3: Shields → Weapons</li>
+            <li>4: Weapons → Hull</li>
+            <li>5: Hull → Engines</li>
+            <li>6: Adaptive Shift (roll 1d4 twice, move 1 cube twice)</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Production Phase (1d12)</h3>
+          <ul>
+            <li>1–2: +3 Assimilation Stock</li>
+            <li>3–4: Build 1 Cube (else +2 AS)</li>
+            <li>5: Build 1 Cube +2 AS</li>
+            <li>6: Convert 3 AS → +1 Cube (else +1 AS)</li>
+            <li>7–8: Reinforce (move 1 cube to Hull)</li>
+            <li>9: No production</li>
+            <li>10: +1 AS per Adaptation Level (min 1)</li>
+            <li>11: Forced Assimilation Check</li>
+            <li>12: Escalation Surge</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Activation Phase (1d6)</h3>
+          <ul>
+            <li>1–2: 2 activations</li>
+            <li>3–4: 3 activations</li>
+            <li>5: 4 activations</li>
+            <li>6: 5 activations</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Activation Procedure</h3>
+          <ul>
+            <li>Select Cube: closest to Developed System, else Home System, else random.</li>
+            <li>Target Selection: 1d20 with modifiers for enemy ships, adaptation level, outnumbered sectors.</li>
+            <li>Action Selection: 1d12 (Advance, Engage, Assimilate, Interdict, etc.).</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Collapse / Persistence (1d6)</h3>
+          <ul>
+            <li>1–2: Normal collapse</li>
+            <li>3–4: Retain one key lane</li>
+            <li>5: Cubes immune to displacement</li>
+            <li>6: Ignore collapse</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Sanity Check</h3>
+          <ul>
+            <li>Total cubes = 16</li>
+            <li>No row below 1 or above 12</li>
+            <li>Dice tier matches Weapons row</li>
+            <li>Impulse matches Engines row</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const state = {
       cubes: { engines: 4, weapons: 4, shields: 4, hull: 4 },
@@ -323,6 +511,9 @@
     const statusGrid = document.getElementById("statusGrid");
     const integritySelect = document.getElementById("integritySelect");
     const soundToggle = document.getElementById("soundToggle");
+    const rulesModal = document.getElementById("rulesModal");
+    const undoButton = document.getElementById("undoAction");
+    const stateHistory = [];
 
     const dice = (sides) => Math.floor(Math.random() * sides) + 1;
 
@@ -340,6 +531,26 @@
     };
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const saveState = () => {
+      stateHistory.push(JSON.parse(JSON.stringify(state)));
+      if (stateHistory.length > 50) {
+        stateHistory.shift();
+      }
+      undoButton.disabled = stateHistory.length === 0;
+    };
+
+    const undoState = () => {
+      if (!stateHistory.length) {
+        log("Undo", ["No previous state stored."]);
+        return;
+      }
+      const previous = stateHistory.pop();
+      Object.assign(state, previous);
+      log("Undo", ["Restored previous Borg board state."]);
+      renderStatus();
+      undoButton.disabled = stateHistory.length === 0;
+    };
 
     const playTone = (frequency, duration = 0.12, type = "sine", gain = 0.08) => {
       if (!soundToggle.checked) return;
@@ -458,6 +669,7 @@
     };
 
     const runAdaptation = () => {
+      saveState();
       const roll = dice(6);
       const details = [`Rolled d6 = ${roll}.`];
       if (roll <= 2) {
@@ -485,6 +697,7 @@
     };
 
     const runReallocation = (source = "standard") => {
+      saveState();
       const roll = dice(6);
       const details = [`Rolled d6 = ${roll}.`];
       if (roll === 1) {
@@ -541,6 +754,7 @@
     };
 
     const runProduction = () => {
+      saveState();
       const roll = dice(12);
       const details = [`Rolled d12 = ${roll}.`];
       if (roll <= 2) {
@@ -643,6 +857,7 @@
     };
 
     const runActivationPhase = () => {
+      saveState();
       const roll = dice(6);
       const baseActivations = roll <= 2 ? 2 : roll <= 4 ? 3 : roll === 5 ? 4 : 5;
       const totalActivations = baseActivations + state.activationBonus;
@@ -678,6 +893,7 @@
     };
 
     const runCollapsePhase = () => {
+      saveState();
       if (!document.getElementById("useCollapse").checked) {
         log("Collapse Phase", ["Skipped (disabled)."]);
         return;
@@ -700,6 +916,7 @@
     };
 
     const endRound = () => {
+      saveState();
       state.round += 1;
       state.activationBonus = state.nextActivationBonus;
       state.nextActivationBonus = 0;
@@ -710,6 +927,7 @@
     };
 
     const applyIntegrityDrop = () => {
+      saveState();
       const selected = Number(integritySelect.value);
       if (selected >= state.mothershipIntegrity) {
         log("Mothership Integrity", ["No drop detected."]);
@@ -729,6 +947,7 @@
     };
 
     const resetState = () => {
+      saveState();
       state.cubes = { engines: 4, weapons: 4, shields: 4, hull: 4 };
       state.adaptationLevel = 0;
       state.adaptationEffect = null;
@@ -751,6 +970,7 @@
     document.getElementById("runActivation").addEventListener("click", runActivationPhase);
     document.getElementById("runCollapse").addEventListener("click", runCollapsePhase);
     document.getElementById("runFullRound").addEventListener("click", () => {
+      saveState();
       runAdaptation();
       runReallocation();
       runProduction();
@@ -759,10 +979,36 @@
       endRound();
     });
     document.getElementById("resetState").addEventListener("click", resetState);
+    document.getElementById("undoAction").addEventListener("click", undoState);
     document.getElementById("endRound").addEventListener("click", endRound);
     document.getElementById("applyIntegrityDrop").addEventListener("click", applyIntegrityDrop);
 
+    document.getElementById("openRules").addEventListener("click", () => {
+      rulesModal.classList.add("active");
+      rulesModal.setAttribute("aria-hidden", "false");
+    });
+
+    document.getElementById("closeRules").addEventListener("click", () => {
+      rulesModal.classList.remove("active");
+      rulesModal.setAttribute("aria-hidden", "true");
+    });
+
+    rulesModal.addEventListener("click", (event) => {
+      if (event.target === rulesModal) {
+        rulesModal.classList.remove("active");
+        rulesModal.setAttribute("aria-hidden", "true");
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && rulesModal.classList.contains("active")) {
+        rulesModal.classList.remove("active");
+        rulesModal.setAttribute("aria-hidden", "true");
+      }
+    });
+
     renderStatus();
+    undoButton.disabled = true;
   </script>
 </body>
 </html>
