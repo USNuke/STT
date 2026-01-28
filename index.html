@@ -189,6 +189,23 @@
       border: 1px solid rgba(60, 255, 131, 0.1);
     }
 
+    .phase-group {
+      border: 1px solid rgba(60, 255, 131, 0.15);
+      border-radius: 10px;
+      padding: 0.75rem;
+      display: grid;
+      gap: 0.6rem;
+      background: rgba(2, 6, 3, 0.6);
+    }
+
+    .phase-group h3 {
+      margin: 0;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1rem;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
     .tabs {
       display: flex;
       gap: 0.5rem;
@@ -254,6 +271,29 @@
       padding-left: 1.2rem;
     }
 
+    .phase-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+
+    .phase-table th,
+    .phase-table td {
+      border: 1px solid rgba(60, 255, 131, 0.2);
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .phase-table th {
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.08rem;
+      background: rgba(8, 16, 11, 0.7);
+    }
+
     .log-entry {
       margin-bottom: 0.5rem;
       animation: logFade 0.35s ease-out;
@@ -282,6 +322,11 @@
 
     .pulse {
       animation: pulseGlow 0.6s ease-out;
+    }
+
+    .status-row.phase-focus {
+      background: rgba(255, 179, 71, 0.2);
+      border: 1px solid rgba(255, 179, 71, 0.35);
     }
 
     @keyframes logFade {
@@ -359,17 +404,24 @@
       <h2>Borg Round Controls</h2>
       <div class="tabs" style="margin-bottom: 0.75rem;">
         <button class="secondary" id="openRules">Rules Reference</button>
+        <button class="secondary" id="openPhaseGuide">Phase Guide</button>
       </div>
       <div class="controls">
-        <button id="runFullRound">Run Full Borg Round</button>
-        <button class="secondary" id="runAdaptation">Adaptation Phase</button>
-        <button class="secondary" id="runReallocation">Power Reallocation</button>
-        <button class="secondary" id="runProduction">Production Phase</button>
-        <button class="secondary" id="runActivation">Activation Phase</button>
-        <label class="inline">
-          <input type="checkbox" id="useCollapse" checked /> Use Collapse / Persistence Phase
-        </label>
-        <button class="secondary" id="runCollapse">Collapse / Persistence</button>
+        <div class="phase-group">
+          <h3>Full Borg Round</h3>
+          <button id="runFullRound">Run Full Borg Round</button>
+        </div>
+        <div class="phase-group">
+          <h3>Borg Phases</h3>
+          <button class="secondary" id="runAdaptation">Adaptation Phase</button>
+          <button class="secondary" id="runReallocation">Power Reallocation</button>
+          <button class="secondary" id="runProduction">Production Phase</button>
+          <button class="secondary" id="runActivation">Activation Phase</button>
+          <label class="inline">
+            <input type="checkbox" id="useCollapse" checked /> Use Collapse / Persistence Phase
+          </label>
+          <button class="secondary" id="runCollapse">Collapse / Persistence</button>
+        </div>
       </div>
     </section>
 
@@ -510,6 +562,54 @@
     </div>
   </div>
 
+  <div class="modal" id="phaseModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Phase Guide</h2>
+        <button class="secondary" id="closePhaseGuide">Minimize</button>
+      </div>
+      <div class="modal-body">
+        <p>This guide aligns player sequencing with Borg automation so each side knows when the Collective responds.</p>
+        <table class="phase-table">
+          <thead>
+            <tr>
+              <th>Player Phase</th>
+              <th>Borg Phase</th>
+              <th>Borg Phase Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Strategic Planning</td>
+              <td>Adaptation</td>
+              <td>Evaluate resistance; adaptation levels may rise and special effects trigger.</td>
+            </tr>
+            <tr>
+              <td>Fleet Allocation</td>
+              <td>Power Reallocation</td>
+              <td>Shift power cubes between Engines, Weapons, Shields, and Hull.</td>
+            </tr>
+            <tr>
+              <td>Production & Build</td>
+              <td>Production</td>
+              <td>Generate Assimilation Stock and construct Borg Cubes.</td>
+            </tr>
+            <tr>
+              <td>Operations</td>
+              <td>Activation</td>
+              <td>Select targets and actions per cube. Borg execute directives without pause.</td>
+            </tr>
+            <tr>
+              <td>End Phase</td>
+              <td>Collapse / Persistence</td>
+              <td>Resolve collapse effects if used, then proceed to the next round.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script>
     const state = {
       cubes: { engines: 4, weapons: 4, shields: 4, hull: 4 },
@@ -532,9 +632,11 @@
     const integritySelect = document.getElementById("integritySelect");
     const soundToggle = document.getElementById("soundToggle");
     const rulesModal = document.getElementById("rulesModal");
+    const phaseModal = document.getElementById("phaseModal");
     const undoButton = document.getElementById("undoAction");
     const stateHistory = [];
     const lastStatusValues = {};
+    const activePhase = { name: "None" };
 
     const dice = (sides) => Math.floor(Math.random() * sides) + 1;
 
@@ -607,21 +709,27 @@
     };
 
     const buildNarrative = (action, target) => {
-      const phrases = {
-        "Advance": `The Collective advances toward ${target}, inevitability given form.`,
-        "Engage": `The Collective engages ${target}. Resistance will be measured and absorbed.`,
-        "Assimilate System": `The Collective assimilates ${target}. Structures fall; unity rises.`,
-        "Assimilate Lane": `The Collective assimilates the lane to ${target}, sealing the corridor.`,
-        "Interdict Lane": `The Collective interdicts the lane to ${target}. Escape is irrelevant.`,
-        "Coordinated Assault": `The Collective coordinates a focused assault on ${target}.`,
-        "Pressure Homeworld": `The Collective pressures ${target}. Home is no longer sanctuary.`,
-        "Hunt Starbase": `The Collective hunts ${target}. Fortifications are obsolete.`,
-        "Cull Weak": `The Collective culls the weak at ${target}. Adaptation proceeds.`,
-        "Reinforce Hull": `The Collective reinforces hull integrity in pursuit of ${target}.`,
-        "Assimilation Harvest": `The Collective harvests resources around ${target}.`,
-        "Overwhelm": `The Collective overwhelms ${target}. Attrition is futile.`,
+      const cubeId = String(Math.floor(Math.random() * 900) + 100).padStart(3, "0");
+      const impulse = impulseSpeed();
+      const directives = {
+        "Advance": `Borg Cube ${cubeId} Gamma, advance on ${target}. Transit at impulse ${impulse}.`,
+        "Engage": `Borg Cube ${cubeId} Gamma, engage ${target}. Weapons free.`,
+        "Assimilate System": `Borg Cube ${cubeId} Gamma, assimilate ${target}. Structures will comply.`,
+        "Assimilate Lane": `Borg Cube ${cubeId} Gamma, assimilate corridor toward ${target}.`,
+        "Interdict Lane": `Borg Cube ${cubeId} Gamma, interdict lane to ${target}. Escape is irrelevant.`,
+        "Coordinated Assault": `Borg Cube ${cubeId} Gamma, coordinate assault on ${target}.`,
+        "Pressure Homeworld": `Borg Cube ${cubeId} Gamma, pressure ${target}. Compliance is inevitable.`,
+        "Hunt Starbase": `Borg Cube ${cubeId} Gamma, target nearest starbase at ${target}.`,
+        "Cull Weak": `Borg Cube ${cubeId} Gamma, cull weak assets at ${target}.`,
+        "Reinforce Hull": `Borg Cube ${cubeId} Gamma, reinforce hull and pursue ${target}.`,
+        "Assimilation Harvest": `Borg Cube ${cubeId} Gamma, harvest resources near ${target}.`,
+        "Overwhelm": `Borg Cube ${cubeId} Gamma, overwhelm ${target}. Maximum impulse.`,
       };
-      return phrases[action] ?? `The Collective pivots toward ${target}.`;
+      return directives[action] ?? `Borg Cube ${cubeId} Gamma, revector toward ${target}.`;
+    };
+
+    const setActivePhase = (phase) => {
+      activePhase.name = phase;
     };
 
     const moveCube = (from, to, reason) => {
@@ -698,13 +806,25 @@
         { label: "Collective Narrative", value: state.narrative },
         { label: "Sanity Check", value: sanityCheck ? "Valid" : "Check Board", tag: sanityCheck ? "ok" : "warn" },
       ];
+      const phaseRows = {
+        Adaptation: ["Adaptation Level", "Adaptation Effect"],
+        Reallocation: ["Engines Cubes", "Weapons Cubes", "Shields Cubes", "Hull Cubes", "Impulse Speed", "Attack Dice", "Shield Reduction", "Hull Regen"],
+        Production: ["Assimilation Stock", "Borg Cubes", "Hull Cubes"],
+        Activation: ["Current Target", "Collective Narrative", "Hull Cubes", "Assimilation Stock"],
+        Collapse: [],
+        End: ["Round", "Activation Bonus"],
+      };
+      const highlighted = phaseRows[activePhase.name] ?? [];
       statusGrid.innerHTML = "";
       statusGrid.classList.remove("pulse");
       status.forEach((item) => {
         const previousValue = lastStatusValues[item.label];
         const hasChanged = previousValue !== undefined && previousValue !== item.value;
         const row = document.createElement("div");
-        row.className = hasChanged ? "status-row changed" : "status-row";
+        const classes = ["status-row"];
+        if (hasChanged) classes.push("changed");
+        if (highlighted.includes(item.label)) classes.push("phase-focus");
+        row.className = classes.join(" ");
         row.innerHTML = `<span>${item.label}</span><strong>${item.value}</strong>`;
         statusGrid.appendChild(row);
         lastStatusValues[item.label] = item.value;
@@ -714,6 +834,7 @@
 
     const runAdaptation = () => {
       saveState();
+      setActivePhase("Adaptation");
       const roll = dice(6);
       const details = [`Rolled d6 = ${roll}.`];
       if (roll <= 2) {
@@ -742,6 +863,7 @@
 
     const runReallocation = (source = "standard") => {
       saveState();
+      setActivePhase("Reallocation");
       const roll = dice(6);
       const details = [`Rolled d6 = ${roll}.`];
       if (roll === 1) {
@@ -799,6 +921,7 @@
 
     const runProduction = () => {
       saveState();
+      setActivePhase("Production");
       const roll = dice(12);
       const details = [`Rolled d12 = ${roll}.`];
       if (roll <= 2) {
@@ -902,6 +1025,7 @@
 
     const runActivationPhase = () => {
       saveState();
+      setActivePhase("Activation");
       const roll = dice(6);
       const baseActivations = roll <= 2 ? 2 : roll <= 4 ? 3 : roll === 5 ? 4 : 5;
       const totalActivations = baseActivations + state.activationBonus;
@@ -941,6 +1065,7 @@
 
     const runCollapsePhase = () => {
       saveState();
+      setActivePhase("Collapse");
       if (!document.getElementById("useCollapse").checked) {
         log("Collapse Phase", ["Skipped (disabled)."]);
         return;
@@ -964,6 +1089,7 @@
 
     const endRound = () => {
       saveState();
+      setActivePhase("End");
       state.round += 1;
       state.activationBonus = state.nextActivationBonus;
       state.nextActivationBonus = 0;
@@ -975,6 +1101,7 @@
 
     const applyIntegrityDrop = () => {
       saveState();
+      setActivePhase("Reallocation");
       const selected = Number(integritySelect.value);
       if (selected >= state.mothershipIntegrity) {
         log("Mothership Integrity", ["No drop detected."]);
@@ -995,6 +1122,7 @@
 
     const resetState = () => {
       saveState();
+      setActivePhase("End");
       state.cubes = { engines: 4, weapons: 4, shields: 4, hull: 4 };
       state.adaptationLevel = 0;
       state.adaptationEffect = null;
@@ -1040,6 +1168,16 @@
       rulesModal.setAttribute("aria-hidden", "true");
     });
 
+    document.getElementById("openPhaseGuide").addEventListener("click", () => {
+      phaseModal.classList.add("active");
+      phaseModal.setAttribute("aria-hidden", "false");
+    });
+
+    document.getElementById("closePhaseGuide").addEventListener("click", () => {
+      phaseModal.classList.remove("active");
+      phaseModal.setAttribute("aria-hidden", "true");
+    });
+
     rulesModal.addEventListener("click", (event) => {
       if (event.target === rulesModal) {
         rulesModal.classList.remove("active");
@@ -1047,10 +1185,23 @@
       }
     });
 
+    phaseModal.addEventListener("click", (event) => {
+      if (event.target === phaseModal) {
+        phaseModal.classList.remove("active");
+        phaseModal.setAttribute("aria-hidden", "true");
+      }
+    });
+
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && rulesModal.classList.contains("active")) {
-        rulesModal.classList.remove("active");
-        rulesModal.setAttribute("aria-hidden", "true");
+      if (event.key === "Escape") {
+        if (rulesModal.classList.contains("active")) {
+          rulesModal.classList.remove("active");
+          rulesModal.setAttribute("aria-hidden", "true");
+        }
+        if (phaseModal.classList.contains("active")) {
+          phaseModal.classList.remove("active");
+          phaseModal.setAttribute("aria-hidden", "true");
+        }
       }
     });
 
