@@ -99,6 +99,12 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
     }
 
+    .status-row.changed {
+      background: rgba(60, 255, 131, 0.18);
+      border: 1px solid rgba(60, 255, 131, 0.35);
+      animation: fieldGlow 0.6s ease-out;
+    }
+
     .status-row strong {
       color: var(--accent);
     }
@@ -312,6 +318,18 @@
       }
     }
 
+    @keyframes fieldGlow {
+      from {
+        box-shadow: 0 0 0 rgba(60, 255, 131, 0);
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(60, 255, 131, 0.4);
+      }
+      to {
+        box-shadow: 0 0 0 rgba(60, 255, 131, 0);
+      }
+    }
+
     footer {
       padding: 1.5rem;
       text-align: center;
@@ -505,6 +523,8 @@
       collapseImmunity: false,
       tempHullBonus: 0,
       round: 1,
+      lastTarget: "None",
+      narrative: "The Collective awaits.",
     };
 
     const logEl = document.getElementById("log");
@@ -514,6 +534,7 @@
     const rulesModal = document.getElementById("rulesModal");
     const undoButton = document.getElementById("undoAction");
     const stateHistory = [];
+    const lastStatusValues = {};
 
     const dice = (sides) => Math.floor(Math.random() * sides) + 1;
 
@@ -583,6 +604,24 @@
       } else if (title.includes("Round Complete")) {
         playTone(640, 0.16, "triangle", 0.09);
       }
+    };
+
+    const buildNarrative = (action, target) => {
+      const phrases = {
+        "Advance": `The Collective advances toward ${target}, inevitability given form.`,
+        "Engage": `The Collective engages ${target}. Resistance will be measured and absorbed.`,
+        "Assimilate System": `The Collective assimilates ${target}. Structures fall; unity rises.`,
+        "Assimilate Lane": `The Collective assimilates the lane to ${target}, sealing the corridor.`,
+        "Interdict Lane": `The Collective interdicts the lane to ${target}. Escape is irrelevant.`,
+        "Coordinated Assault": `The Collective coordinates a focused assault on ${target}.`,
+        "Pressure Homeworld": `The Collective pressures ${target}. Home is no longer sanctuary.`,
+        "Hunt Starbase": `The Collective hunts ${target}. Fortifications are obsolete.`,
+        "Cull Weak": `The Collective culls the weak at ${target}. Adaptation proceeds.`,
+        "Reinforce Hull": `The Collective reinforces hull integrity in pursuit of ${target}.`,
+        "Assimilation Harvest": `The Collective harvests resources around ${target}.`,
+        "Overwhelm": `The Collective overwhelms ${target}. Attrition is futile.`,
+      };
+      return phrases[action] ?? `The Collective pivots toward ${target}.`;
     };
 
     const moveCube = (from, to, reason) => {
@@ -655,15 +694,20 @@
         { label: "Borg Cubes", value: state.borgCubes },
         { label: "Mothership Integrity", value: state.mothershipIntegrity },
         { label: "Activation Bonus", value: state.activationBonus },
+        { label: "Current Target", value: state.lastTarget },
+        { label: "Collective Narrative", value: state.narrative },
         { label: "Sanity Check", value: sanityCheck ? "Valid" : "Check Board", tag: sanityCheck ? "ok" : "warn" },
       ];
       statusGrid.innerHTML = "";
       statusGrid.classList.remove("pulse");
       status.forEach((item) => {
+        const previousValue = lastStatusValues[item.label];
+        const hasChanged = previousValue !== undefined && previousValue !== item.value;
         const row = document.createElement("div");
-        row.className = "status-row";
+        row.className = hasChanged ? "status-row changed" : "status-row";
         row.innerHTML = `<span>${item.label}</span><strong>${item.value}</strong>`;
         statusGrid.appendChild(row);
+        lastStatusValues[item.label] = item.value;
       });
       requestAnimationFrame(() => statusGrid.classList.add("pulse"));
     };
@@ -870,10 +914,13 @@
       for (let i = 1; i <= totalActivations; i += 1) {
         const target = resolveTargetSelection();
         const action = resolveActionSelection();
+        state.lastTarget = target.target;
+        state.narrative = buildNarrative(action.action, target.target);
         const details = [
           `Activation ${i}: Target roll ${target.roll} (mod ${target.modifier}) → ${target.result}.`,
           `Target: ${target.target}.`,
           `Action roll d12 = ${action.roll} → ${action.action}.`,
+          `Narrative: ${state.narrative}`,
         ];
         if (action.action === "Reinforce Hull") {
           state.tempHullBonus += 1;
