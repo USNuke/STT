@@ -613,6 +613,23 @@
     </section>
 
     <section>
+      <h2>Empire Selector</h2>
+      <div class="controls">
+        <div class="inline">
+          <label for="empireSelect">NPC Empire Profile</label>
+          <select id="empireSelect"></select>
+        </div>
+        <button class="secondary" id="generateEmpireTable">Generate NPC Die Table</button>
+        <div class="phase-group" id="empireOutput">
+          <h3>NPC Directive Table</h3>
+          <div class="log-entry">
+            <span>Select an empire and generate a unique die table.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
       <h2>ChatGPT Action Intake</h2>
       <div class="json-input">
         <label for="jsonInput">Paste JSON action payload</label>
@@ -802,6 +819,8 @@
     const phaseModal = document.getElementById("phaseModal");
     const undoButton = document.getElementById("undoAction");
     const jsonInput = document.getElementById("jsonInput");
+    const empireSelect = document.getElementById("empireSelect");
+    const empireOutput = document.getElementById("empireOutput");
     const cubeTracks = {
       engines: document.getElementById("enginesTrack"),
       weapons: document.getElementById("weaponsTrack"),
@@ -819,6 +838,102 @@
     const activePhase = { name: "None" };
 
     const dice = (sides) => Math.floor(Math.random() * sides) + 1;
+
+    const empireTables = [
+      {
+        id: "federation",
+        name: "United Federation of Planets",
+        flavor: "Diplomatic coordination with adaptive research focus.",
+        die: [
+          "1-2: Defensive screen; prioritize shields and escort responses.",
+          "3: Scientific analysis; gain intel, delay aggressive response.",
+          "4: Coordinated maneuver; reposition to protect key systems.",
+          "5: Precision strike; focus highest-value threat.",
+          "6: Reinforce starbases; fortify lanes and stabilize fronts.",
+        ],
+      },
+      {
+        id: "klingon",
+        name: "Klingon Empire",
+        flavor: "Honor-driven assault patterns and aggressive pursuit.",
+        die: [
+          "1-2: Charge; engage closest enemy with maximum impulse.",
+          "3: Blood oath; focus flagship or capital target.",
+          "4: Flank; attempt to isolate weaker opponent.",
+          "5: Boarding action; increase assault intensity.",
+          "6: Victory chant; press advantage, no retreat.",
+        ],
+      },
+      {
+        id: "romulan",
+        name: "Romulan Star Empire",
+        flavor: "Subterfuge, ambushes, and calculated strikes.",
+        die: [
+          "1-2: Cloaked reposition; avoid direct engagement.",
+          "3: Feint; probe defenses, then withdraw.",
+          "4: Ambush; strike from concealment on vulnerable asset.",
+          "5: Sabotage; disrupt supply or command lanes.",
+          "6: Decisive strike; hit highest-value target and vanish.",
+        ],
+      },
+      {
+        id: "cardassian",
+        name: "Cardassian Union",
+        flavor: "Resource discipline and control of strategic choke points.",
+        die: [
+          "1-2: Occupy; fortify a lane or system.",
+          "3: Suppress; overwhelm local defenses.",
+          "4: Siege; focus prolonged bombardment.",
+          "5: Forced compliance; intimidate to gain control.",
+          "6: Reinforce; consolidate fleets at key node.",
+        ],
+      },
+      {
+        id: "dominion",
+        name: "Dominion",
+        flavor: "Overwhelming force with relentless expansion.",
+        die: [
+          "1-2: Swarm; mass ships into a single assault.",
+          "3: Assimilate territory; expand to adjacent systems.",
+          "4: Vorta directive; prioritize strategic objective.",
+          "5: Jem'Hadar charge; strike regardless of losses.",
+          "6: Total domination; lock down multiple lanes.",
+        ],
+      },
+      {
+        id: "ferengi",
+        name: "Ferengi Alliance",
+        flavor: "Profit-motivated opportunism and negotiation leverage.",
+        die: [
+          "1-2: Trade leverage; avoid conflict, build economy.",
+          "3: Skirmish; test defenses for profitable opening.",
+          "4: Bribe; attempt to neutralize enemy pressure.",
+          "5: Salvage; collect resources after battle.",
+          "6: Profit strike; attack a high-value target and withdraw.",
+        ],
+      },
+    ];
+
+    const populateEmpireSelect = () => {
+      empireSelect.innerHTML = "";
+      empireTables.forEach((empire) => {
+        const option = document.createElement("option");
+        option.value = empire.id;
+        option.textContent = empire.name;
+        empireSelect.appendChild(option);
+      });
+    };
+
+    const renderEmpireTable = () => {
+      const selected = empireTables.find((empire) => empire.id === empireSelect.value) ?? empireTables[0];
+      empireOutput.innerHTML = `
+        <h3>${selected.name}</h3>
+        <div class="log-entry"><span>${selected.flavor}</span></div>
+        <div class="log-entry">
+          ${selected.die.map((entry) => `<span>${entry}</span>`).join("")}
+        </div>
+      `;
+    };
 
     const log = (title, details = []) => {
       const entry = document.createElement("div");
@@ -1426,6 +1541,7 @@
     });
 
     document.getElementById("applyJsonAction").addEventListener("click", applyJsonAction);
+    document.getElementById("generateEmpireTable").addEventListener("click", renderEmpireTable);
 
     document.getElementById("openPhaseGuide").addEventListener("click", () => {
       phaseModal.classList.add("active");
@@ -1465,6 +1581,8 @@
     });
 
     renderStatus();
+    populateEmpireSelect();
+    renderEmpireTable();
     undoButton.disabled = true;
   </script>
 </body>
