@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Borg Collective Dice AI Assistant</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050806;
+      --panel: #0b140e;
+      --accent: #3cff83;
+      --accent-dim: #1fae57;
+      --text: #e7ffee;
+      --warn: #ffb347;
+      --danger: #ff5d5d;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #0d2417, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      perspective: 1200px;
+    }
+
+    header {
+      padding: 2.5rem 2rem 1.5rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(60, 255, 131, 0.2);
+      background: rgba(5, 10, 7, 0.85);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: 0.2rem;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    header p {
+      margin: 0.75rem 0 0;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    main {
+      padding: 2rem;
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid rgba(60, 255, 131, 0.2);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 0 24px rgba(31, 174, 87, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    section:hover {
+      transform: translateY(-4px) rotateX(2deg) rotateY(-1deg);
+      box-shadow: 0 16px 32px rgba(5, 5, 5, 0.4), 0 0 32px rgba(60, 255, 131, 0.2);
+    }
+
+    section h2 {
+      margin-top: 0;
+      color: var(--accent);
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+    }
+
+    .status-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .cube-board {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .cube-row {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .cube-row-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    .cube-row.phase-focus .cube-row-header {
+      color: var(--accent);
+    }
+
+    .cube-row.phase-focus .cube-slot {
+      border-color: rgba(60, 255, 131, 0.4);
+    }
+
+    .cube-track {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(14px, 1fr));
+      gap: 0.35rem;
+    }
+
+    .cube-slot {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      border: 1px solid rgba(231, 255, 238, 0.15);
+      background: rgba(3, 7, 4, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cube-slot.filled {
+      box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.4),
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        0 0 10px rgba(60, 255, 131, 0.15);
+      transform: translateZ(6px);
+    }
+
+    .cube-slot.temp::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 1px dashed rgba(255, 255, 255, 0.6);
+      border-radius: 2px;
+    }
+
+    .cube-slot.engines.filled {
+      background: linear-gradient(135deg, #2b6bff, #1b2d7a);
+      border-color: rgba(43, 107, 255, 0.6);
+    }
+
+    .cube-slot.weapons.filled {
+      background: linear-gradient(135deg, #ff4c4c, #7a1b1b);
+      border-color: rgba(255, 76, 76, 0.6);
+    }
+
+    .cube-slot.shields.filled {
+      background: linear-gradient(135deg, #2ad4ff, #0f4a66);
+      border-color: rgba(42, 212, 255, 0.6);
+    }
+
+    .cube-slot.hull.filled {
+      background: linear-gradient(135deg, #ffb347, #7a4d1b);
+      border-color: rgba(255, 179, 71, 0.6);
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      background: rgba(3, 7, 4, 0.6);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transform-style: preserve-3d;
+    }
+
+    .status-row:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    .status-row.changed {
+      background: rgba(60, 255, 131, 0.18);
+      border: 1px solid rgba(60, 255, 131, 0.35);
+      animation: fieldGlow 0.6s ease-out;
+    }
+
+    .status-row strong {
+      color: var(--accent);
+    }
+
+    .controls {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    button {
+      background: var(--accent);
+      color: #042010;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      transform-style: preserve-3d;
+    }
+
+    button:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 0 12px rgba(60, 255, 131, 0.35);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 0 8px rgba(60, 255, 131, 0.2);
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    button.warning {
+      background: var(--warn);
+      color: #1a0f00;
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #1c0000;
+    }
+
+    .inline {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    input, select {
+      background: #050c08;
+      color: var(--text);
+      border: 1px solid rgba(60, 255, 131, 0.3);
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      width: 100%;
+    }
+
+    input[type="number"] {
+      width: 80px;
+    }
+
+    .log {
+      max-height: 520px;
+      overflow-y: auto;
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      background: rgba(1, 4, 2, 0.7);
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(60, 255, 131, 0.1);
+    }
+
+    .phase-group {
+      border: 1px solid rgba(60, 255, 131, 0.15);
+      border-radius: 10px;
+      padding: 0.75rem;
+      display: grid;
+      gap: 0.6rem;
+      background: rgba(2, 6, 3, 0.6);
+    }
+
+    .phase-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .phase-box {
+      border: 1px solid rgba(60, 255, 131, 0.2);
+      border-radius: 12px;
+      padding: 0.75rem;
+      background: rgba(5, 12, 7, 0.75);
+      display: grid;
+      gap: 0.6rem;
+    }
+
+    .phase-box h4 {
+      margin: 0;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1rem;
+      color: rgba(231, 255, 238, 0.8);
+    }
+
+    .phase-group h3 {
+      margin: 0;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1rem;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    .json-input {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .json-input textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--panel);
+      border: 1px solid rgba(60, 255, 131, 0.3);
+      border-radius: 16px;
+      width: min(900px, 92vw);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      animation: popIn 0.2s ease-out;
+    }
+
+    .modal-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(60, 255, 131, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 1rem 1.5rem 1.5rem;
+      overflow-y: auto;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: rgba(231, 255, 238, 0.85);
+    }
+
+    .rules-section {
+      margin-bottom: 1rem;
+    }
+
+    .rules-section h3 {
+      margin: 0 0 0.35rem;
+      color: var(--accent);
+      font-size: 1rem;
+      letter-spacing: 0.05rem;
+      text-transform: uppercase;
+    }
+
+    .rules-section ul {
+      margin: 0.25rem 0 0;
+      padding-left: 1.2rem;
+    }
+
+    .phase-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+
+    .phase-table th,
+    .phase-table td {
+      border: 1px solid rgba(60, 255, 131, 0.2);
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .phase-table th {
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.08rem;
+      background: rgba(8, 16, 11, 0.7);
+    }
+
+    .log-entry {
+      margin-bottom: 0.5rem;
+      animation: logFade 0.35s ease-out;
+    }
+
+    .log-entry span {
+      display: block;
+      color: rgba(231, 255, 238, 0.65);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(60, 255, 131, 0.4);
+      color: var(--accent);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+    }
+
+    .highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .pulse {
+      animation: pulseGlow 0.6s ease-out;
+    }
+
+    .status-row.phase-focus {
+      background: rgba(255, 179, 71, 0.2);
+      border: 1px solid rgba(255, 179, 71, 0.35);
+    }
+
+    @keyframes logFade {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulseGlow {
+      0% {
+        box-shadow: 0 0 0 rgba(60, 255, 131, 0);
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(60, 255, 131, 0.35);
+      }
+      100% {
+        box-shadow: 0 0 0 rgba(60, 255, 131, 0);
+      }
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes fieldGlow {
+      from {
+        box-shadow: 0 0 0 rgba(60, 255, 131, 0);
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(60, 255, 131, 0.4);
+      }
+      to {
+        box-shadow: 0 0 0 rgba(60, 255, 131, 0);
+      }
+    }
+
+    footer {
+      padding: 1.5rem;
+      text-align: center;
+      color: rgba(231, 255, 238, 0.5);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Borg Collective Dice AI Assistant</h1>
+    <p>Standalone board-driven engine to resolve every Borg phase, dice table, and escalation effect.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Collective Status</h2>
+      <div class="cube-board" id="cubeBoard">
+        <div class="cube-row" data-row="engines">
+          <div class="cube-row-header">
+            <span>Engines</span>
+            <span id="enginesCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="enginesTrack"></div>
+        </div>
+        <div class="cube-row" data-row="weapons">
+          <div class="cube-row-header">
+            <span>Weapons</span>
+            <span id="weaponsCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="weaponsTrack"></div>
+        </div>
+        <div class="cube-row" data-row="shields">
+          <div class="cube-row-header">
+            <span>Shields</span>
+            <span id="shieldsCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="shieldsTrack"></div>
+        </div>
+        <div class="cube-row" data-row="hull">
+          <div class="cube-row-header">
+            <span>Hull</span>
+            <span id="hullCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="hullTrack"></div>
+        </div>
+      </div>
+      <div class="status-grid" id="statusGrid"></div>
+      <div class="inline" style="margin-top: 1rem;">
+        <button class="secondary" id="resetState">Reset Collective</button>
+        <button class="secondary" id="undoAction">Undo Last Action</button>
+        <button class="warning" id="endRound">End Round</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Borg Round Controls</h2>
+      <div class="tabs" style="margin-bottom: 0.75rem;">
+        <button class="secondary" id="openRules">Rules Reference</button>
+        <button class="secondary" id="openPhaseGuide">Phase Guide</button>
+      </div>
+      <div class="controls">
+        <div class="phase-group">
+          <h3>Full Borg Round</h3>
+          <button id="runFullRound">Run Full Borg Round</button>
+        </div>
+        <div class="phase-group">
+          <h3>Player Phase Alignment</h3>
+          <div class="phase-grid">
+            <div class="phase-box">
+              <h4>Initiative Phase</h4>
+              <button class="secondary" id="runAdaptation">Borg Adaptation Response</button>
+            </div>
+            <div class="phase-box">
+              <h4>Building Phase</h4>
+              <button class="secondary" id="runReallocation">Power Reallocation</button>
+              <button class="secondary" id="runProduction">Production Phase</button>
+            </div>
+            <div class="phase-box">
+              <h4>Command Phase</h4>
+              <button class="secondary" id="runActivation">Activation Phase</button>
+            </div>
+            <div class="phase-box">
+              <h4>Maintenance Phase</h4>
+              <label class="inline">
+                <input type="checkbox" id="useCollapse" checked /> Use Collapse / Persistence Phase
+              </label>
+              <button class="secondary" id="runCollapse">Collapse / Persistence</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Operational Inputs</h2>
+      <div class="controls">
+        <div class="inline">
+          <label for="enemyShips">Enemy ships in target sector</label>
+          <input type="number" id="enemyShips" min="0" value="0" />
+        </div>
+        <label class="inline">
+          <input type="checkbox" id="outnumbered" /> Entering outnumbered sector
+        </label>
+        <div class="inline">
+          <label for="maxCubes">Max Borg Cubes (0 = unlimited)</label>
+          <input type="number" id="maxCubes" min="0" value="0" />
+        </div>
+        <div class="inline">
+          <label for="integritySelect">Mothership Integrity</label>
+          <select id="integritySelect">
+            <option value="16">16 - Full Collective</option>
+            <option value="12">12 - Adaptive Aggression</option>
+            <option value="8">8 - Desperation Mode</option>
+            <option value="4">4 - Final Assimilation Drive</option>
+          </select>
+        </div>
+        <label class="inline">
+          <input type="checkbox" id="soundToggle" checked /> Enable Borg UI Sounds
+        </label>
+        <label class="inline">
+          <input type="checkbox" id="voiceToggle" checked /> Enable Borg Vocal Directives
+        </label>
+        <button class="danger" id="applyIntegrityDrop">Apply Integrity Drop</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Empire Selector</h2>
+      <div class="controls">
+        <div class="inline">
+          <label for="empireSelect">NPC Empire Profile</label>
+          <select id="empireSelect"></select>
+        </div>
+        <button class="secondary" id="generateEmpireTable">Generate NPC Die Table</button>
+        <div class="phase-group" id="empireOutput">
+          <h3>NPC Directive Table</h3>
+          <div class="log-entry">
+            <span>Select an empire and generate a unique die table.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>ChatGPT Action Intake</h2>
+      <div class="json-input">
+        <label for="jsonInput">Paste JSON action payload</label>
+        <textarea id="jsonInput" placeholder='{"message":"Borg Cube 015 Gamma, target nearest starbase.","phase":"Activation","target":"Starbase / Fortification"}'></textarea>
+        <button class="secondary" id="applyJsonAction">Apply JSON Action</button>
+      </div>
+    </section>
+
+    <section style="grid-column: span 2;">
+      <h2>Round Log</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <footer>Resistance is futile because it is inefficient.</footer>
+
+  <div class="modal" id="rulesModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Rules Reference</h2>
+        <button class="secondary" id="closeRules">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="rules-section">
+          <h3>Borg Round Structure</h3>
+          <ul>
+            <li>Adaptation Phase (1d6)</li>
+            <li>Power Reallocation Phase (1d6)</li>
+            <li>Production Phase (1d12)</li>
+            <li>Activation Phase (1d6)</li>
+            <li>Collapse / Persistence Phase (optional)</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Mothership Board</h3>
+          <ul>
+            <li>Engines, Weapons, Shields, Hull (1–12 cubes each)</li>
+            <li>Global Integrity Track: 16 / 12 / 8 / 4</li>
+            <li>Starting configuration: 4 cubes in each row</li>
+            <li>Hard constraints: min 1 cube, max 12 cubes per row</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Adaptation Phase (1d6)</h3>
+          <ul>
+            <li>1–2: No change</li>
+            <li>3–4: Adaptation Level +1</li>
+            <li>5: Adaptation Level +2</li>
+            <li>6: Adaptation Level +1 and roll Adaptation Effect (1d6)</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Power Reallocation (1d6)</h3>
+          <ul>
+            <li>1: No change</li>
+            <li>2: Engines → Shields</li>
+            <li>3: Shields → Weapons</li>
+            <li>4: Weapons → Hull</li>
+            <li>5: Hull → Engines</li>
+            <li>6: Adaptive Shift (roll 1d4 twice, move 1 cube twice)</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Production Phase (1d12)</h3>
+          <ul>
+            <li>1–2: +3 Assimilation Stock</li>
+            <li>3–4: Build 1 Cube (else +2 AS)</li>
+            <li>5: Build 1 Cube +2 AS</li>
+            <li>6: Convert 3 AS → +1 Cube (else +1 AS)</li>
+            <li>7–8: Reinforce (move 1 cube to Hull)</li>
+            <li>9: No production</li>
+            <li>10: +1 AS per Adaptation Level (min 1)</li>
+            <li>11: Forced Assimilation Check</li>
+            <li>12: Escalation Surge</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Activation Phase (1d6)</h3>
+          <ul>
+            <li>1–2: 2 activations</li>
+            <li>3–4: 3 activations</li>
+            <li>5: 4 activations</li>
+            <li>6: 5 activations</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Activation Procedure</h3>
+          <ul>
+            <li>Select Cube: closest to Developed System, else Home System, else random.</li>
+            <li>Target Selection: 1d20 with modifiers for enemy ships, adaptation level, outnumbered sectors.</li>
+            <li>Action Selection: 1d12 (Advance, Engage, Assimilate, Interdict, etc.).</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Collapse / Persistence (1d6)</h3>
+          <ul>
+            <li>1–2: Normal collapse</li>
+            <li>3–4: Retain one key lane</li>
+            <li>5: Cubes immune to displacement</li>
+            <li>6: Ignore collapse</li>
+          </ul>
+        </div>
+        <div class="rules-section">
+          <h3>Sanity Check</h3>
+          <ul>
+            <li>Total cubes = 16</li>
+            <li>No row below 1 or above 12</li>
+            <li>Dice tier matches Weapons row</li>
+            <li>Impulse matches Engines row</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="phaseModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Phase Guide</h2>
+        <button class="secondary" id="closePhaseGuide">Minimize</button>
+      </div>
+      <div class="modal-body">
+        <p>This guide aligns player sequencing with Borg automation so each side knows when the Collective responds.</p>
+        <table class="phase-table">
+          <thead>
+            <tr>
+              <th>Player Phase</th>
+              <th>Borg Phase</th>
+              <th>Borg Phase Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Strategic Planning</td>
+              <td>Adaptation</td>
+              <td>Evaluate resistance; adaptation levels may rise and special effects trigger.</td>
+            </tr>
+            <tr>
+              <td>Fleet Allocation</td>
+              <td>Power Reallocation</td>
+              <td>Shift power cubes between Engines, Weapons, Shields, and Hull.</td>
+            </tr>
+            <tr>
+              <td>Production & Build</td>
+              <td>Production</td>
+              <td>Generate Assimilation Stock and construct Borg Cubes.</td>
+            </tr>
+            <tr>
+              <td>Operations</td>
+              <td>Activation</td>
+              <td>Select targets and actions per cube. Borg execute directives without pause.</td>
+            </tr>
+            <tr>
+              <td>End Phase</td>
+              <td>Collapse / Persistence</td>
+              <td>Resolve collapse effects if used, then proceed to the next round.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      cubes: { engines: 4, weapons: 4, shields: 4, hull: 4 },
+      adaptationLevel: 0,
+      adaptationEffect: null,
+      assimilationStock: 0,
+      borgCubes: 1,
+      mothershipIntegrity: 16,
+      activationBonus: 0,
+      nextActivationBonus: 0,
+      collapseImmunity: false,
+      tempHullBonus: 0,
+      round: 1,
+      lastTarget: "None",
+      narrative: "The Collective awaits.",
+    };
+
+    const logEl = document.getElementById("log");
+    const statusGrid = document.getElementById("statusGrid");
+    const integritySelect = document.getElementById("integritySelect");
+    const soundToggle = document.getElementById("soundToggle");
+    const voiceToggle = document.getElementById("voiceToggle");
+    const rulesModal = document.getElementById("rulesModal");
+    const phaseModal = document.getElementById("phaseModal");
+    const undoButton = document.getElementById("undoAction");
+    const jsonInput = document.getElementById("jsonInput");
+    const empireSelect = document.getElementById("empireSelect");
+    const empireOutput = document.getElementById("empireOutput");
+    const cubeTracks = {
+      engines: document.getElementById("enginesTrack"),
+      weapons: document.getElementById("weaponsTrack"),
+      shields: document.getElementById("shieldsTrack"),
+      hull: document.getElementById("hullTrack"),
+    };
+    const cubeCounts = {
+      engines: document.getElementById("enginesCount"),
+      weapons: document.getElementById("weaponsCount"),
+      shields: document.getElementById("shieldsCount"),
+      hull: document.getElementById("hullCount"),
+    };
+    const stateHistory = [];
+    const lastStatusValues = {};
+    const activePhase = { name: "None" };
+
+    const dice = (sides) => Math.floor(Math.random() * sides) + 1;
+
+    const empireTables = [
+      {
+        id: "federation",
+        name: "United Federation of Planets",
+        flavor: "Diplomatic coordination with adaptive research focus.",
+        die: [
+          "1-2: Defensive screen; prioritize shields and escort responses.",
+          "3: Scientific analysis; gain intel, delay aggressive response.",
+          "4: Coordinated maneuver; reposition to protect key systems.",
+          "5: Precision strike; focus highest-value threat.",
+          "6: Reinforce starbases; fortify lanes and stabilize fronts.",
+        ],
+      },
+      {
+        id: "klingon",
+        name: "Klingon Empire",
+        flavor: "Honor-driven assault patterns and aggressive pursuit.",
+        die: [
+          "1-2: Charge; engage closest enemy with maximum impulse.",
+          "3: Blood oath; focus flagship or capital target.",
+          "4: Flank; attempt to isolate weaker opponent.",
+          "5: Boarding action; increase assault intensity.",
+          "6: Victory chant; press advantage, no retreat.",
+        ],
+      },
+      {
+        id: "romulan",
+        name: "Romulan Star Empire",
+        flavor: "Subterfuge, ambushes, and calculated strikes.",
+        die: [
+          "1-2: Cloaked reposition; avoid direct engagement.",
+          "3: Feint; probe defenses, then withdraw.",
+          "4: Ambush; strike from concealment on vulnerable asset.",
+          "5: Sabotage; disrupt supply or command lanes.",
+          "6: Decisive strike; hit highest-value target and vanish.",
+        ],
+      },
+      {
+        id: "cardassian",
+        name: "Cardassian Union",
+        flavor: "Resource discipline and control of strategic choke points.",
+        die: [
+          "1-2: Occupy; fortify a lane or system.",
+          "3: Suppress; overwhelm local defenses.",
+          "4: Siege; focus prolonged bombardment.",
+          "5: Forced compliance; intimidate to gain control.",
+          "6: Reinforce; consolidate fleets at key node.",
+        ],
+      },
+      {
+        id: "dominion",
+        name: "Dominion",
+        flavor: "Overwhelming force with relentless expansion.",
+        die: [
+          "1-2: Swarm; mass ships into a single assault.",
+          "3: Assimilate territory; expand to adjacent systems.",
+          "4: Vorta directive; prioritize strategic objective.",
+          "5: Jem'Hadar charge; strike regardless of losses.",
+          "6: Total domination; lock down multiple lanes.",
+        ],
+      },
+      {
+        id: "ferengi",
+        name: "Ferengi Alliance",
+        flavor: "Profit-motivated opportunism and negotiation leverage.",
+        die: [
+          "1-2: Trade leverage; avoid conflict, build economy.",
+          "3: Skirmish; test defenses for profitable opening.",
+          "4: Bribe; attempt to neutralize enemy pressure.",
+          "5: Salvage; collect resources after battle.",
+          "6: Profit strike; attack a high-value target and withdraw.",
+        ],
+      },
+    ];
+
+    const populateEmpireSelect = () => {
+      empireSelect.innerHTML = "";
+      empireTables.forEach((empire) => {
+        const option = document.createElement("option");
+        option.value = empire.id;
+        option.textContent = empire.name;
+        empireSelect.appendChild(option);
+      });
+    };
+
+    const renderEmpireTable = () => {
+      const selected = empireTables.find((empire) => empire.id === empireSelect.value) ?? empireTables[0];
+      empireOutput.innerHTML = `
+        <h3>${selected.name}</h3>
+        <div class="log-entry"><span>${selected.flavor}</span></div>
+        <div class="log-entry">
+          ${selected.die.map((entry) => `<span>${entry}</span>`).join("")}
+        </div>
+      `;
+    };
+
+    const log = (title, details = []) => {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.innerHTML = `<div class="highlight">${title}</div>`;
+      details.forEach((detail) => {
+        const span = document.createElement("span");
+        span.textContent = detail;
+        entry.appendChild(span);
+      });
+      logEl.prepend(entry);
+      playSoundForEvent(title);
+      if (title.includes("Activation Procedure")) {
+        const narrativeLine = details.find((detail) => detail.startsWith("Narrative: "));
+        if (narrativeLine) {
+          speakDirective(narrativeLine.replace("Narrative: ", ""));
+        }
+      }
+    };
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const saveState = () => {
+      stateHistory.push(JSON.parse(JSON.stringify(state)));
+      if (stateHistory.length > 50) {
+        stateHistory.shift();
+      }
+      undoButton.disabled = stateHistory.length === 0;
+    };
+
+    const undoState = () => {
+      if (!stateHistory.length) {
+        log("Undo", ["No previous state stored."]);
+        return;
+      }
+      const previous = stateHistory.pop();
+      Object.assign(state, previous);
+      log("Undo", ["Restored previous Borg board state."]);
+      renderStatus();
+      undoButton.disabled = stateHistory.length === 0;
+    };
+
+    const playTone = (frequency, duration = 0.12, type = "sine", gain = 0.08) => {
+      if (!soundToggle.checked) return;
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const amp = context.createGain();
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+      amp.gain.value = gain;
+      oscillator.connect(amp);
+      amp.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + duration);
+      oscillator.onended = () => context.close();
+    };
+
+    const playSoundForEvent = (title) => {
+      if (title.includes("Adaptation")) {
+        playTone(520, 0.14, "triangle");
+      } else if (title.includes("Reallocation")) {
+        playTone(440, 0.1, "square");
+      } else if (title.includes("Production")) {
+        playTone(600, 0.12, "sawtooth");
+      } else if (title.includes("Activation")) {
+        playTone(360, 0.08, "sine");
+      } else if (title.includes("Collapse")) {
+        playTone(240, 0.18, "sine");
+      } else if (title.includes("Integrity")) {
+        playTone(300, 0.2, "square", 0.1);
+      } else if (title.includes("Round Complete")) {
+        playTone(640, 0.16, "triangle", 0.09);
+      }
+    };
+
+    const speakDirective = (text) => {
+      if (!voiceToggle.checked) return;
+      if (!("speechSynthesis" in window)) return;
+      if (!text) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 0.7;
+      utterance.volume = 0.9;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    const buildNarrative = (action, target) => {
+      const cubeId = String(Math.floor(Math.random() * 900) + 100).padStart(3, "0");
+      const impulse = impulseSpeed();
+      const directives = {
+        "Advance": `Borg Cube ${cubeId} Gamma, advance on ${target}. Transit at impulse ${impulse}.`,
+        "Engage": `Borg Cube ${cubeId} Gamma, engage ${target}. Weapons free.`,
+        "Assimilate System": `Borg Cube ${cubeId} Gamma, assimilate ${target}. Structures will comply.`,
+        "Assimilate Lane": `Borg Cube ${cubeId} Gamma, assimilate corridor toward ${target}.`,
+        "Interdict Lane": `Borg Cube ${cubeId} Gamma, interdict lane to ${target}. Escape is irrelevant.`,
+        "Coordinated Assault": `Borg Cube ${cubeId} Gamma, coordinate assault on ${target}.`,
+        "Pressure Homeworld": `Borg Cube ${cubeId} Gamma, pressure ${target}. Compliance is inevitable.`,
+        "Hunt Starbase": `Borg Cube ${cubeId} Gamma, target nearest starbase at ${target}.`,
+        "Cull Weak": `Borg Cube ${cubeId} Gamma, cull weak assets at ${target}.`,
+        "Reinforce Hull": `Borg Cube ${cubeId} Gamma, reinforce hull and pursue ${target}.`,
+        "Assimilation Harvest": `Borg Cube ${cubeId} Gamma, harvest resources near ${target}.`,
+        "Overwhelm": `Borg Cube ${cubeId} Gamma, overwhelm ${target}. Maximum impulse.`,
+      };
+      return directives[action] ?? `Borg Cube ${cubeId} Gamma, revector toward ${target}.`;
+    };
+
+    const setActivePhase = (phase) => {
+      activePhase.name = phase;
+    };
+
+    const applyJsonAction = () => {
+      saveState();
+      let payload;
+      try {
+        payload = JSON.parse(jsonInput.value || "{}");
+      } catch (error) {
+        log("JSON Intake", ["Invalid JSON payload."]);
+        return;
+      }
+      if (payload.phase) {
+        setActivePhase(payload.phase);
+      }
+      if (payload.target) {
+        state.lastTarget = payload.target;
+      }
+      if (payload.message) {
+        state.narrative = payload.message;
+      }
+      log("JSON Intake", [
+        `Phase: ${payload.phase ?? "Unspecified"}.`,
+        `Target: ${payload.target ?? "Unspecified"}.`,
+        `Message: ${payload.message ?? "Unspecified"}.`,
+      ]);
+      if (payload.message) {
+        speakDirective(payload.message);
+      }
+      renderStatus();
+    };
+
+    const moveCube = (from, to, reason) => {
+      if (state.cubes[from] <= 1) {
+        log(`${reason}: Illegal move blocked`, [`${from} has minimum cube count.`]);
+        return false;
+      }
+      if (state.cubes[to] >= 12) {
+        log(`${reason}: Illegal move blocked`, [`${to} already at maximum.`]);
+        return false;
+      }
+      state.cubes[from] -= 1;
+      state.cubes[to] += 1;
+      log(`${reason}: Power reallocation`, [`${from} → ${to}.`]);
+      return true;
+    };
+
+    const impulseSpeed = () => {
+      const engines = state.cubes.engines;
+      if (engines <= 3) return 1;
+      if (engines <= 6) return 2;
+      if (engines <= 9) return 3;
+      return 4;
+    };
+
+    const attackDice = () => {
+      const weapons = state.cubes.weapons;
+      if (weapons <= 3) return "D2 ×3";
+      if (weapons <= 5) return "D4 ×3";
+      if (weapons <= 7) return "D6 ×3";
+      if (weapons <= 9) return "D8 ×3";
+      if (weapons <= 11) return "D10 ×3";
+      return "D12 ×3";
+    };
+
+    const shieldReduction = () => {
+      const shields = state.cubes.shields;
+      if (shields <= 3) return -1;
+      if (shields <= 6) return -2;
+      if (shields <= 9) return -3;
+      return -4;
+    };
+
+    const hullRegen = () => {
+      const hull = state.cubes.hull + state.tempHullBonus;
+      if (hull <= 3) return "No regeneration";
+      if (hull <= 6) return "Regenerate 1";
+      if (hull <= 9) return "Regenerate 2";
+      return "Regenerate 3";
+    };
+
+    const renderCubeBoard = () => {
+      const rowOrder = ["engines", "weapons", "shields", "hull"];
+      const phaseFocusRows = {
+        Reallocation: ["engines", "weapons", "shields", "hull"],
+      };
+      const focused = phaseFocusRows[activePhase.name] ?? [];
+      rowOrder.forEach((row) => {
+        const track = cubeTracks[row];
+        const countLabel = cubeCounts[row];
+        if (!track || !countLabel) return;
+        const rowContainer = track.closest(".cube-row");
+        if (rowContainer) {
+          rowContainer.classList.toggle("phase-focus", focused.includes(row));
+        }
+        const baseCount = state.cubes[row];
+        const tempCount = row === "hull" ? state.tempHullBonus : 0;
+        const totalCount = Math.min(12, baseCount + tempCount);
+        countLabel.textContent = `${baseCount}${tempCount ? ` +${tempCount}` : ""} / 12`;
+        track.innerHTML = "";
+        for (let i = 0; i < 12; i += 1) {
+          const slot = document.createElement("div");
+          slot.className = "cube-slot";
+          if (i < totalCount) {
+            slot.classList.add("filled", row);
+            if (i >= baseCount) {
+              slot.classList.add("temp");
+            }
+          }
+          track.appendChild(slot);
+        }
+      });
+    };
+
+    const renderStatus = () => {
+      const totalCubes = Object.values(state.cubes).reduce((sum, value) => sum + value, 0);
+      const hullTotal = state.cubes.hull + state.tempHullBonus;
+      const sanityCheck = totalCubes === 16
+        && Object.values(state.cubes).every((value) => value >= 1 && value <= 12);
+      const status = [
+        { label: "Round", value: state.round },
+        { label: "Impulse Speed", value: impulseSpeed() },
+        { label: "Attack Dice", value: attackDice() },
+        { label: "Shield Reduction", value: shieldReduction() },
+        { label: "Hull Regen", value: hullRegen() },
+        { label: "Adaptation Level", value: state.adaptationLevel },
+        { label: "Adaptation Effect", value: state.adaptationEffect ?? "None" },
+        { label: "Assimilation Stock", value: state.assimilationStock },
+        { label: "Borg Cubes", value: state.borgCubes },
+        { label: "Mothership Integrity", value: state.mothershipIntegrity },
+        { label: "Activation Bonus", value: state.activationBonus },
+        { label: "Current Target", value: state.lastTarget },
+        { label: "Collective Narrative", value: state.narrative },
+        { label: "Sanity Check", value: sanityCheck ? "Valid" : "Check Board", tag: sanityCheck ? "ok" : "warn" },
+      ];
+      const phaseRows = {
+        Adaptation: ["Adaptation Level", "Adaptation Effect"],
+        Reallocation: ["Impulse Speed", "Attack Dice", "Shield Reduction", "Hull Regen"],
+        Production: ["Assimilation Stock", "Borg Cubes"],
+        Activation: ["Current Target", "Collective Narrative", "Assimilation Stock"],
+        Collapse: [],
+        End: ["Round", "Activation Bonus"],
+      };
+      const highlighted = phaseRows[activePhase.name] ?? [];
+      statusGrid.innerHTML = "";
+      renderCubeBoard();
+      statusGrid.classList.remove("pulse");
+      status.forEach((item) => {
+        const previousValue = lastStatusValues[item.label];
+        const hasChanged = previousValue !== undefined && previousValue !== item.value;
+        const row = document.createElement("div");
+        const classes = ["status-row"];
+        if (hasChanged) classes.push("changed");
+        if (highlighted.includes(item.label)) classes.push("phase-focus");
+        row.className = classes.join(" ");
+        row.innerHTML = `<span>${item.label}</span><strong>${item.value}</strong>`;
+        statusGrid.appendChild(row);
+        lastStatusValues[item.label] = item.value;
+      });
+      requestAnimationFrame(() => statusGrid.classList.add("pulse"));
+    };
+
+    const runAdaptation = () => {
+      saveState();
+      setActivePhase("Adaptation");
+      const roll = dice(6);
+      const details = [`Rolled d6 = ${roll}.`];
+      if (roll <= 2) {
+        state.adaptationEffect = null;
+      } else if (roll <= 4) {
+        state.adaptationLevel += 1;
+      } else if (roll === 5) {
+        state.adaptationLevel += 2;
+      } else {
+        state.adaptationLevel += 1;
+        const effectRoll = dice(6);
+        const effects = {
+          1: "+1 Hit to all Borg attacks",
+          2: "Reduce incoming hits by 1 per combat round",
+          3: "Regenerate 1 lost attack die after each combat round",
+          4: "+1 Impulse to all Cubes",
+          5: "+1 Assimilation Stock per enemy ship destroyed",
+          6: "One failed Hit reroll per combat round",
+        };
+        state.adaptationEffect = effects[effectRoll];
+        details.push(`Adaptation Effect d6 = ${effectRoll}: ${effects[effectRoll]}.`);
+      }
+      log("Adaptation Phase", details);
+      renderStatus();
+    };
+
+    const runReallocation = (source = "standard") => {
+      saveState();
+      setActivePhase("Reallocation");
+      const roll = dice(6);
+      const details = [`Rolled d6 = ${roll}.`];
+      if (roll === 1) {
+        details.push("No change.");
+      } else if (roll === 2) {
+        moveCube("engines", "shields", "Reallocation");
+      } else if (roll === 3) {
+        moveCube("shields", "weapons", "Reallocation");
+      } else if (roll === 4) {
+        moveCube("weapons", "hull", "Reallocation");
+      } else if (roll === 5) {
+        moveCube("hull", "engines", "Reallocation");
+      } else {
+        for (let i = 0; i < 2; i += 1) {
+          let sourceRoll = dice(4);
+          let destRoll = dice(4);
+          while (destRoll === sourceRoll) {
+            destRoll = dice(4);
+          }
+          const map = ["engines", "weapons", "shields", "hull"];
+          moveCube(map[sourceRoll - 1], map[destRoll - 1], "Adaptive Shift");
+        }
+      }
+      log("Power Reallocation Phase", details);
+      renderStatus();
+    };
+
+    const buildBorgCube = (bonusAssimilation) => {
+      const maxCubes = Number(document.getElementById("maxCubes").value || 0);
+      if (maxCubes > 0 && state.borgCubes >= maxCubes) {
+        state.assimilationStock += bonusAssimilation;
+        log("Production", [`Build blocked at cap. Gained +${bonusAssimilation} AS.`]);
+        return;
+      }
+      state.borgCubes += 1;
+      if (bonusAssimilation) {
+        state.assimilationStock += bonusAssimilation;
+        log("Production", [`Built 1 Cube. +${bonusAssimilation} AS.`]);
+      } else {
+        log("Production", ["Built 1 Cube."]);
+      }
+    };
+
+    const reinforceHull = () => {
+      const sources = ["engines", "weapons", "shields"].filter((row) => state.cubes[row] > 1);
+      if (!sources.length) {
+        log("Reinforce", ["No legal cube to move to Hull."]);
+        return;
+      }
+      const maxValue = Math.max(...sources.map((row) => state.cubes[row]));
+      const candidates = sources.filter((row) => state.cubes[row] === maxValue);
+      const source = candidates[Math.floor(Math.random() * candidates.length)];
+      moveCube(source, "hull", "Reinforce Hull");
+    };
+
+    const runProduction = () => {
+      saveState();
+      setActivePhase("Production");
+      const roll = dice(12);
+      const details = [`Rolled d12 = ${roll}.`];
+      if (roll <= 2) {
+        state.assimilationStock += 3;
+        details.push("+3 Assimilation Stock.");
+      } else if (roll <= 4) {
+        buildBorgCube(2);
+      } else if (roll === 5) {
+        buildBorgCube(2);
+      } else if (roll === 6) {
+        if (state.assimilationStock >= 3) {
+          state.assimilationStock -= 3;
+          buildBorgCube(0);
+        } else {
+          state.assimilationStock += 1;
+          details.push("Not enough AS; +1 AS instead.");
+        }
+      } else if (roll <= 8) {
+        reinforceHull();
+      } else if (roll === 9) {
+        details.push("No production.");
+      } else if (roll === 10) {
+        const gain = Math.max(1, state.adaptationLevel);
+        state.assimilationStock += gain;
+        details.push(`+${gain} AS from Adaptation Level.`);
+      } else if (roll === 11) {
+        forcedAssimilationCheck();
+      } else {
+        state.assimilationStock += 3;
+        details.push("Escalation Surge: +3 AS.");
+        forcedAssimilationCheck();
+        state.nextActivationBonus += 1;
+        details.push("+1 Activation next round.");
+      }
+      log("Production Phase", details);
+      renderStatus();
+    };
+
+    const forcedAssimilationCheck = () => {
+      log("Forced Assimilation Check", [
+        "If a Cube is on a developed system, assimilate now.",
+        "Else if adjacent, move in and assimilate.",
+        "Else gain +2 AS.",
+      ]);
+      state.assimilationStock += 2;
+    };
+
+    const resolveTargetSelection = () => {
+      const enemyShips = Number(document.getElementById("enemyShips").value || 0);
+      const outnumbered = document.getElementById("outnumbered").checked;
+      let modifier = 0;
+      if (enemyShips >= 5) modifier += 4;
+      else if (enemyShips >= 3) modifier += 2;
+      if (state.adaptationLevel >= 3) modifier += 1;
+      if (outnumbered) modifier -= 2;
+      const roll = dice(20);
+      const result = clamp(roll + modifier, 1, 20);
+      const table = [
+        "Mining / Resource Lane",
+        "Mining / Resource Lane",
+        "Mining / Resource Lane",
+        "Mining / Resource Lane",
+        "Enemy Frigate Cluster",
+        "Enemy Frigate Cluster",
+        "Enemy Frigate Cluster",
+        "Enemy Frigate Cluster",
+        "Highest-Value Enemy Ship",
+        "Highest-Value Enemy Ship",
+        "Highest-Value Enemy Ship",
+        "Highest-Value Enemy Ship",
+        "Developed System",
+        "Developed System",
+        "Developed System",
+        "Developed System",
+        "Starbase / Fortification",
+        "Starbase / Fortification",
+        "Home System",
+        "Highest Density Threat",
+      ];
+      return { roll, modifier, result, target: table[result - 1] };
+    };
+
+    const resolveActionSelection = () => {
+      const roll = dice(12);
+      const table = {
+        1: "Advance",
+        2: "Engage",
+        3: "Assimilate System",
+        4: "Assimilate Lane",
+        5: "Interdict Lane",
+        6: "Coordinated Assault",
+        7: "Pressure Homeworld",
+        8: "Hunt Starbase",
+        9: "Cull Weak",
+        10: "Reinforce Hull",
+        11: "Assimilation Harvest",
+        12: "Overwhelm",
+      };
+      return { roll, action: table[roll] };
+    };
+
+    const runActivationPhase = () => {
+      saveState();
+      setActivePhase("Activation");
+      const roll = dice(6);
+      const baseActivations = roll <= 2 ? 2 : roll <= 4 ? 3 : roll === 5 ? 4 : 5;
+      const totalActivations = baseActivations + state.activationBonus;
+      log("Activation Phase", [
+        `Rolled d6 = ${roll}.`,
+        `Base activations: ${baseActivations}.`,
+        `Activation bonus: +${state.activationBonus}.`,
+        `Total activations: ${totalActivations}.`,
+      ]);
+      for (let i = 1; i <= totalActivations; i += 1) {
+        const target = resolveTargetSelection();
+        const action = resolveActionSelection();
+        state.lastTarget = target.target;
+        state.narrative = buildNarrative(action.action, target.target);
+        const details = [
+          `Activation ${i}: Target roll ${target.roll} (mod ${target.modifier}) → ${target.result}.`,
+          `Target: ${target.target}.`,
+          `Action roll d12 = ${action.roll} → ${action.action}.`,
+          `Narrative: ${state.narrative}`,
+        ];
+        if (action.action === "Reinforce Hull") {
+          state.tempHullBonus += 1;
+          details.push("Hull reinforced (+1 cube until end of round).");
+        }
+        if (action.action === "Assimilation Harvest") {
+          const gain = state.cubes.hull + state.tempHullBonus;
+          state.assimilationStock += gain;
+          details.push(`Assimilation Harvest: +${gain} AS.`);
+        }
+        if (action.action === "Overwhelm") {
+          details.push("Overwhelm: +1 Impulse this activation.");
+        }
+        log("Activation Procedure", details);
+      }
+      renderStatus();
+    };
+
+    const runCollapsePhase = () => {
+      saveState();
+      setActivePhase("Collapse");
+      if (!document.getElementById("useCollapse").checked) {
+        log("Collapse Phase", ["Skipped (disabled)."]);
+        return;
+      }
+      if (state.collapseImmunity) {
+        log("Collapse Phase", ["Collapse penalties ignored this round."]);
+        state.collapseImmunity = false;
+        return;
+      }
+      const roll = dice(6);
+      const table = {
+        1: "Normal collapse",
+        2: "Normal collapse",
+        3: "Retain one key lane",
+        4: "Retain one key lane",
+        5: "Cubes immune to displacement",
+        6: "Ignore collapse",
+      };
+      log("Collapse / Persistence", [`Rolled d6 = ${roll}.`, table[roll]]);
+    };
+
+    const endRound = () => {
+      saveState();
+      setActivePhase("End");
+      state.round += 1;
+      state.activationBonus = state.nextActivationBonus;
+      state.nextActivationBonus = 0;
+      state.tempHullBonus = 0;
+      state.adaptationEffect = null;
+      log("Round Complete", ["Temporary effects reset. Activation bonus carried forward."]);
+      renderStatus();
+    };
+
+    const applyIntegrityDrop = () => {
+      saveState();
+      setActivePhase("Reallocation");
+      const selected = Number(integritySelect.value);
+      if (selected >= state.mothershipIntegrity) {
+        log("Mothership Integrity", ["No drop detected."]);
+        return;
+      }
+      state.mothershipIntegrity = selected;
+      log("Mothership Integrity", [
+        `Integrity dropped to ${selected}.`,
+        "Immediate Power Reallocation triggered.",
+        "+1 Activation next round.",
+        "Ignore collapse penalties for one round.",
+      ]);
+      state.nextActivationBonus += 1;
+      state.collapseImmunity = true;
+      runReallocation("Integrity Drop");
+      renderStatus();
+    };
+
+    const resetState = () => {
+      saveState();
+      setActivePhase("End");
+      state.cubes = { engines: 4, weapons: 4, shields: 4, hull: 4 };
+      state.adaptationLevel = 0;
+      state.adaptationEffect = null;
+      state.assimilationStock = 0;
+      state.borgCubes = 1;
+      state.mothershipIntegrity = 16;
+      state.activationBonus = 0;
+      state.nextActivationBonus = 0;
+      state.collapseImmunity = false;
+      state.tempHullBonus = 0;
+      state.round = 1;
+      integritySelect.value = "16";
+      log("Collective Reset", ["Board restored to locked starting configuration."]);
+      renderStatus();
+    };
+
+    document.getElementById("runAdaptation").addEventListener("click", runAdaptation);
+    document.getElementById("runReallocation").addEventListener("click", runReallocation);
+    document.getElementById("runProduction").addEventListener("click", runProduction);
+    document.getElementById("runActivation").addEventListener("click", runActivationPhase);
+    document.getElementById("runCollapse").addEventListener("click", runCollapsePhase);
+    document.getElementById("runFullRound").addEventListener("click", () => {
+      saveState();
+      runAdaptation();
+      runReallocation();
+      runProduction();
+      runActivationPhase();
+      runCollapsePhase();
+      endRound();
+    });
+    document.getElementById("resetState").addEventListener("click", resetState);
+    document.getElementById("undoAction").addEventListener("click", undoState);
+    document.getElementById("endRound").addEventListener("click", endRound);
+    document.getElementById("applyIntegrityDrop").addEventListener("click", applyIntegrityDrop);
+
+    document.getElementById("openRules").addEventListener("click", () => {
+      rulesModal.classList.add("active");
+      rulesModal.setAttribute("aria-hidden", "false");
+    });
+
+    document.getElementById("closeRules").addEventListener("click", () => {
+      rulesModal.classList.remove("active");
+      rulesModal.setAttribute("aria-hidden", "true");
+    });
+
+    document.getElementById("applyJsonAction").addEventListener("click", applyJsonAction);
+    document.getElementById("generateEmpireTable").addEventListener("click", renderEmpireTable);
+
+    document.getElementById("openPhaseGuide").addEventListener("click", () => {
+      phaseModal.classList.add("active");
+      phaseModal.setAttribute("aria-hidden", "false");
+    });
+
+    document.getElementById("closePhaseGuide").addEventListener("click", () => {
+      phaseModal.classList.remove("active");
+      phaseModal.setAttribute("aria-hidden", "true");
+    });
+
+    rulesModal.addEventListener("click", (event) => {
+      if (event.target === rulesModal) {
+        rulesModal.classList.remove("active");
+        rulesModal.setAttribute("aria-hidden", "true");
+      }
+    });
+
+    phaseModal.addEventListener("click", (event) => {
+      if (event.target === phaseModal) {
+        phaseModal.classList.remove("active");
+        phaseModal.setAttribute("aria-hidden", "true");
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (rulesModal.classList.contains("active")) {
+          rulesModal.classList.remove("active");
+          rulesModal.setAttribute("aria-hidden", "true");
+        }
+        if (phaseModal.classList.contains("active")) {
+          phaseModal.classList.remove("active");
+          phaseModal.setAttribute("aria-hidden", "true");
+        }
+      }
+    });
+
+    renderStatus();
+    populateEmpireSelect();
+    renderEmpireTable();
+    undoButton.disabled = true;
+  </script>
+</body>
+</html>
