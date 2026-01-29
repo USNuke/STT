@@ -83,6 +83,84 @@
       gap: 0.75rem;
     }
 
+    .cube-board {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .cube-row {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .cube-row-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08rem;
+      color: rgba(231, 255, 238, 0.7);
+    }
+
+    .cube-row.phase-focus .cube-row-header {
+      color: var(--accent);
+    }
+
+    .cube-row.phase-focus .cube-slot {
+      border-color: rgba(60, 255, 131, 0.4);
+    }
+
+    .cube-track {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(14px, 1fr));
+      gap: 0.35rem;
+    }
+
+    .cube-slot {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      border: 1px solid rgba(231, 255, 238, 0.15);
+      background: rgba(3, 7, 4, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cube-slot.filled {
+      box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.4),
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        0 0 10px rgba(60, 255, 131, 0.15);
+      transform: translateZ(6px);
+    }
+
+    .cube-slot.temp::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 1px dashed rgba(255, 255, 255, 0.6);
+      border-radius: 2px;
+    }
+
+    .cube-slot.engines.filled {
+      background: linear-gradient(135deg, #2b6bff, #1b2d7a);
+      border-color: rgba(43, 107, 255, 0.6);
+    }
+
+    .cube-slot.weapons.filled {
+      background: linear-gradient(135deg, #ff4c4c, #7a1b1b);
+      border-color: rgba(255, 76, 76, 0.6);
+    }
+
+    .cube-slot.shields.filled {
+      background: linear-gradient(135deg, #2ad4ff, #0f4a66);
+      border-color: rgba(42, 212, 255, 0.6);
+    }
+
+    .cube-slot.hull.filled {
+      background: linear-gradient(135deg, #ffb347, #7a4d1b);
+      border-color: rgba(255, 179, 71, 0.6);
+    }
+
     .status-row {
       display: flex;
       justify-content: space-between;
@@ -402,6 +480,36 @@
   <main>
     <section>
       <h2>Collective Status</h2>
+      <div class="cube-board" id="cubeBoard">
+        <div class="cube-row" data-row="engines">
+          <div class="cube-row-header">
+            <span>Engines</span>
+            <span id="enginesCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="enginesTrack"></div>
+        </div>
+        <div class="cube-row" data-row="weapons">
+          <div class="cube-row-header">
+            <span>Weapons</span>
+            <span id="weaponsCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="weaponsTrack"></div>
+        </div>
+        <div class="cube-row" data-row="shields">
+          <div class="cube-row-header">
+            <span>Shields</span>
+            <span id="shieldsCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="shieldsTrack"></div>
+        </div>
+        <div class="cube-row" data-row="hull">
+          <div class="cube-row-header">
+            <span>Hull</span>
+            <span id="hullCount">0 / 12</span>
+          </div>
+          <div class="cube-track" id="hullTrack"></div>
+        </div>
+      </div>
       <div class="status-grid" id="statusGrid"></div>
       <div class="inline" style="margin-top: 1rem;">
         <button class="secondary" id="resetState">Reset Collective</button>
@@ -654,6 +762,18 @@
     const phaseModal = document.getElementById("phaseModal");
     const undoButton = document.getElementById("undoAction");
     const jsonInput = document.getElementById("jsonInput");
+    const cubeTracks = {
+      engines: document.getElementById("enginesTrack"),
+      weapons: document.getElementById("weaponsTrack"),
+      shields: document.getElementById("shieldsTrack"),
+      hull: document.getElementById("hullTrack"),
+    };
+    const cubeCounts = {
+      engines: document.getElementById("enginesCount"),
+      weapons: document.getElementById("weaponsCount"),
+      shields: document.getElementById("shieldsCount"),
+      hull: document.getElementById("hullCount"),
+    };
     const stateHistory = [];
     const lastStatusValues = {};
     const activePhase = { name: "None" };
@@ -827,6 +947,39 @@
       return "Regenerate 3";
     };
 
+    const renderCubeBoard = () => {
+      const rowOrder = ["engines", "weapons", "shields", "hull"];
+      const phaseFocusRows = {
+        Reallocation: ["engines", "weapons", "shields", "hull"],
+      };
+      const focused = phaseFocusRows[activePhase.name] ?? [];
+      rowOrder.forEach((row) => {
+        const track = cubeTracks[row];
+        const countLabel = cubeCounts[row];
+        if (!track || !countLabel) return;
+        const rowContainer = track.closest(".cube-row");
+        if (rowContainer) {
+          rowContainer.classList.toggle("phase-focus", focused.includes(row));
+        }
+        const baseCount = state.cubes[row];
+        const tempCount = row === "hull" ? state.tempHullBonus : 0;
+        const totalCount = Math.min(12, baseCount + tempCount);
+        countLabel.textContent = `${baseCount}${tempCount ? ` +${tempCount}` : ""} / 12`;
+        track.innerHTML = "";
+        for (let i = 0; i < 12; i += 1) {
+          const slot = document.createElement("div");
+          slot.className = "cube-slot";
+          if (i < totalCount) {
+            slot.classList.add("filled", row);
+            if (i >= baseCount) {
+              slot.classList.add("temp");
+            }
+          }
+          track.appendChild(slot);
+        }
+      });
+    };
+
     const renderStatus = () => {
       const totalCubes = Object.values(state.cubes).reduce((sum, value) => sum + value, 0);
       const hullTotal = state.cubes.hull + state.tempHullBonus;
@@ -834,10 +987,6 @@
         && Object.values(state.cubes).every((value) => value >= 1 && value <= 12);
       const status = [
         { label: "Round", value: state.round },
-        { label: "Engines Cubes", value: state.cubes.engines },
-        { label: "Weapons Cubes", value: state.cubes.weapons },
-        { label: "Shields Cubes", value: state.cubes.shields },
-        { label: "Hull Cubes", value: `${hullTotal}${state.tempHullBonus ? " (temp)" : ""}` },
         { label: "Impulse Speed", value: impulseSpeed() },
         { label: "Attack Dice", value: attackDice() },
         { label: "Shield Reduction", value: shieldReduction() },
@@ -854,14 +1003,15 @@
       ];
       const phaseRows = {
         Adaptation: ["Adaptation Level", "Adaptation Effect"],
-        Reallocation: ["Engines Cubes", "Weapons Cubes", "Shields Cubes", "Hull Cubes", "Impulse Speed", "Attack Dice", "Shield Reduction", "Hull Regen"],
-        Production: ["Assimilation Stock", "Borg Cubes", "Hull Cubes"],
-        Activation: ["Current Target", "Collective Narrative", "Hull Cubes", "Assimilation Stock"],
+        Reallocation: ["Impulse Speed", "Attack Dice", "Shield Reduction", "Hull Regen"],
+        Production: ["Assimilation Stock", "Borg Cubes"],
+        Activation: ["Current Target", "Collective Narrative", "Assimilation Stock"],
         Collapse: [],
         End: ["Round", "Activation Bonus"],
       };
       const highlighted = phaseRows[activePhase.name] ?? [];
       statusGrid.innerHTML = "";
+      renderCubeBoard();
       statusGrid.classList.remove("pulse");
       status.forEach((item) => {
         const previousValue = lastStatusValues[item.label];
