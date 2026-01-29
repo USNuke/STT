@@ -569,6 +569,9 @@
         <label class="inline">
           <input type="checkbox" id="soundToggle" checked /> Enable Borg UI Sounds
         </label>
+        <label class="inline">
+          <input type="checkbox" id="voiceToggle" checked /> Enable Borg Vocal Directives
+        </label>
         <button class="danger" id="applyIntegrityDrop">Apply Integrity Drop</button>
       </div>
     </section>
@@ -758,6 +761,7 @@
     const statusGrid = document.getElementById("statusGrid");
     const integritySelect = document.getElementById("integritySelect");
     const soundToggle = document.getElementById("soundToggle");
+    const voiceToggle = document.getElementById("voiceToggle");
     const rulesModal = document.getElementById("rulesModal");
     const phaseModal = document.getElementById("phaseModal");
     const undoButton = document.getElementById("undoAction");
@@ -791,6 +795,12 @@
       });
       logEl.prepend(entry);
       playSoundForEvent(title);
+      if (title.includes("Activation Procedure")) {
+        const narrativeLine = details.find((detail) => detail.startsWith("Narrative: "));
+        if (narrativeLine) {
+          speakDirective(narrativeLine.replace("Narrative: ", ""));
+        }
+      }
     };
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -848,6 +858,18 @@
       }
     };
 
+    const speakDirective = (text) => {
+      if (!voiceToggle.checked) return;
+      if (!("speechSynthesis" in window)) return;
+      if (!text) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 0.7;
+      utterance.volume = 0.9;
+      window.speechSynthesis.speak(utterance);
+    };
+
     const buildNarrative = (action, target) => {
       const cubeId = String(Math.floor(Math.random() * 900) + 100).padStart(3, "0");
       const impulse = impulseSpeed();
@@ -895,6 +917,9 @@
         `Target: ${payload.target ?? "Unspecified"}.`,
         `Message: ${payload.message ?? "Unspecified"}.`,
       ]);
+      if (payload.message) {
+        speakDirective(payload.message);
+      }
       renderStatus();
     };
 
