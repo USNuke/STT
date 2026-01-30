@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ascendancy Companion</title>
+    <title>Custom Board Game Companion</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,32 +15,33 @@
   <body>
     <header class="hero">
       <div class="hero__content">
-        <p class="hero__eyebrow">Star Trek Ascendancy</p>
-        <h1>Custom Ascendancy Companion</h1>
+        <p class="hero__eyebrow">Player Companion</p>
+        <h1>Custom Board Game Companion</h1>
         <p class="hero__subtitle">
-          Organize your sessions, track resource momentum, and keep every fleet action in view.
+          Log in on a tablet or PC, choose your game, select rules options, and load player-specific
+          dashboards.
         </p>
         <div class="hero__actions">
-          <button class="primary" type="button" id="new-session">Start New Session</button>
-          <button class="ghost" type="button" id="share-summary">Share Summary</button>
+          <button class="primary" type="button" id="player-login">Player Login</button>
+          <button class="ghost" type="button" id="open-library">Game Library</button>
         </div>
       </div>
       <div class="hero__panel">
         <div class="status-card">
-          <p class="status-card__label">Current Starmap</p>
-          <h2>Alpha Quadrant</h2>
+          <p class="status-card__label">Active Session</p>
+          <h2 id="session-title">Awaiting Login</h2>
           <div class="status-grid">
             <div>
-              <span class="status-card__value" id="turn-count">07</span>
-              <span class="status-card__meta">Turn</span>
+              <span class="status-card__value" id="player-count">0</span>
+              <span class="status-card__meta">Players Online</span>
             </div>
             <div>
-              <span class="status-card__value" id="difficulty">III</span>
-              <span class="status-card__meta">Difficulty</span>
+              <span class="status-card__value" id="ruleset">-</span>
+              <span class="status-card__meta">Ruleset</span>
             </div>
           </div>
           <p class="status-card__note" id="session-note">
-            Borg tension rising near sector 12. Continue diplomatic overture.
+            Use the login panel to authenticate and load your player profile.
           </p>
         </div>
       </div>
@@ -50,65 +51,128 @@
       <section class="grid">
         <article class="panel">
           <header>
-            <h3>Faction Readiness</h3>
-            <p>Quick scan of diplomacy, research, and logistics across active factions.</p>
+            <h3>Player Login</h3>
+            <p>Sign in to access your personalized dashboard.</p>
           </header>
-          <div class="faction-list" id="faction-list"></div>
+          <form class="login-form" id="login-form">
+            <label class="field">
+              <span>Username</span>
+              <input id="login-username" name="username" autocomplete="username" />
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input
+                id="login-password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+              />
+            </label>
+            <button type="submit" class="primary">Sign In</button>
+          </form>
+          <p class="feedback" id="login-feedback" aria-live="polite"></p>
         </article>
 
         <article class="panel">
           <header>
-            <h3>Resource Cadence</h3>
-            <p>Estimate short-term production to guide build orders and fleet upgrades.</p>
+            <h3>Game Library</h3>
+            <p>Select a game to load its companion tools.</p>
           </header>
-          <div class="meter-stack">
-            <div class="meter">
-              <div class="meter__label">
-                <span>Production</span>
-                <span id="production-value">+4</span>
+          <ul class="list" id="game-list">
+            <li class="game-card">
+              <div>
+                <strong>Star Trek Ascendancy</strong>
+                <p>Player-facing campaign companion</p>
               </div>
-              <div class="meter__bar"><span style="width: 72%"></span></div>
-            </div>
-            <div class="meter">
-              <div class="meter__label">
-                <span>Research</span>
-                <span id="research-value">+3</span>
-              </div>
-              <div class="meter__bar"><span style="width: 58%"></span></div>
-            </div>
-            <div class="meter">
-              <div class="meter__label">
-                <span>Culture</span>
-                <span id="culture-value">+2</span>
-              </div>
-              <div class="meter__bar"><span style="width: 44%"></span></div>
-            </div>
+              <button type="button" class="ghost" id="select-ascendancy">Select</button>
+            </li>
+          </ul>
+          <p class="feedback" id="game-feedback" aria-live="polite"></p>
+        </article>
+
+        <article class="panel">
+          <header>
+            <h3>Ruleset Options</h3>
+            <p>Choose between classic rules or homebrew mods.</p>
+          </header>
+          <div class="option-stack" id="ruleset-options">
+            <label class="radio-card">
+              <input type="radio" name="ruleset" value="classic" checked />
+              <span>
+                <strong>Classic</strong>
+                <small>No mods, official rules only.</small>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="ruleset" value="homebrew" />
+              <span>
+                <strong>Homebrew</strong>
+                <small>Custom mods enabled.</small>
+              </span>
+            </label>
           </div>
+          <button type="button" class="primary" id="confirm-ruleset">Confirm Ruleset</button>
+        </article>
+
+        <article class="panel">
+          <header>
+            <h3>Classic Resources</h3>
+            <p>Track empire resources when running classic rules.</p>
+          </header>
+          <div class="resource-grid" id="resource-grid"></div>
           <div class="resource-actions">
-            <button type="button" class="ghost" id="forecast">Generate Forecast</button>
-            <button type="button" class="primary" id="log-turn">Log Turn</button>
+            <button type="button" class="ghost" id="reset-resources">Reset Resources</button>
           </div>
         </article>
 
         <article class="panel">
           <header>
-            <h3>Fleet Operations</h3>
-            <p>Plan missions, flagships, and tactical objectives for this round.</p>
+            <h3>System Tracking</h3>
+            <p>Record owned systems and their node values.</p>
           </header>
-          <ul class="list" id="fleet-list"></ul>
-          <button type="button" class="ghost" id="add-mission">Add Mission</button>
+          <form class="system-form" id="system-form">
+            <label class="field">
+              <span>System Name</span>
+              <input id="system-name" name="system-name" placeholder="Vulcan" />
+            </label>
+            <div class="node-grid">
+              <label class="field">
+                <span>Production</span>
+                <input id="node-production" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>Research</span>
+                <input id="node-research" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>Culture</span>
+                <input id="node-culture" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>Control</span>
+                <input id="node-control" type="number" min="0" value="0" />
+              </label>
+            </div>
+            <button type="submit" class="primary">Add System</button>
+          </form>
+          <ul class="list" id="system-list"></ul>
+          <p class="feedback" id="system-feedback" aria-live="polite"></p>
         </article>
 
         <article class="panel">
           <header>
-            <h3>Session Notes</h3>
-            <p>Capture events for the recap or turn-by-turn summaries.</p>
+            <h3>Player Briefing</h3>
+            <p>Load player-specific objectives after login and ruleset selection.</p>
           </header>
           <div class="notes">
-            <textarea id="session-notes" placeholder="Log key events, alliances, or anomalies..."></textarea>
+            <textarea
+              id="session-notes"
+              placeholder="Player-specific notes will appear here once authenticated..."
+              readonly
+            ></textarea>
             <div class="notes__footer">
               <span id="note-count">0 characters</span>
-              <button type="button" class="primary" id="save-notes">Save Notes</button>
+              <button type="button" class="primary" id="load-briefing">Load Briefing</button>
             </div>
           </div>
         </article>
@@ -116,7 +180,7 @@
     </main>
 
     <footer>
-      <p>Built for captains who want every Ascendancy detail at their fingertips.</p>
+      <p>Built for player-facing companions that keep every session organized.</p>
     </footer>
 
     <script src="app.js"></script>
