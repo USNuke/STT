@@ -6,7 +6,21 @@ const state = {
   selectedGame: null,
   ruleset: "classic",
   playersOnline: 0,
+  resources: {
+    dollars: 0,
+    production: 0,
+    research: 0,
+    culture: 0,
+  },
+  systems: [],
 };
+
+const RESOURCE_KEYS = [
+  { key: "dollars", label: "$" },
+  { key: "production", label: "Production" },
+  { key: "research", label: "Research" },
+  { key: "culture", label: "Culture" },
+];
 
 function initializeApp() {
   const sessionTitle = document.getElementById("session-title");
@@ -21,6 +35,16 @@ function initializeApp() {
   const selectAscendancy = document.getElementById("select-ascendancy");
   const rulesetOptions = document.getElementById("ruleset-options");
   const confirmRuleset = document.getElementById("confirm-ruleset");
+  const resourceGrid = document.getElementById("resource-grid");
+  const resetResources = document.getElementById("reset-resources");
+  const systemForm = document.getElementById("system-form");
+  const systemName = document.getElementById("system-name");
+  const systemProduction = document.getElementById("node-production");
+  const systemResearch = document.getElementById("node-research");
+  const systemCulture = document.getElementById("node-culture");
+  const systemControl = document.getElementById("node-control");
+  const systemList = document.getElementById("system-list");
+  const systemFeedback = document.getElementById("system-feedback");
   const notesInput = document.getElementById("session-notes");
   const noteCount = document.getElementById("note-count");
   const loadBriefing = document.getElementById("load-briefing");
@@ -38,6 +62,16 @@ function initializeApp() {
     !selectAscendancy ||
     !rulesetOptions ||
     !confirmRuleset ||
+    !resourceGrid ||
+    !resetResources ||
+    !systemForm ||
+    !systemName ||
+    !systemProduction ||
+    !systemResearch ||
+    !systemCulture ||
+    !systemControl ||
+    !systemList ||
+    !systemFeedback ||
     !notesInput ||
     !noteCount ||
     !loadBriefing
@@ -66,8 +100,57 @@ function initializeApp() {
     gameFeedback.dataset.tone = tone;
   }
 
+  function setSystemFeedback(message, tone = "info") {
+    systemFeedback.textContent = message;
+    systemFeedback.dataset.tone = tone;
+  }
+
   function updateNoteCount() {
     noteCount.textContent = `${notesInput.value.length} characters`;
+  }
+
+  function renderResources() {
+    resourceGrid.innerHTML = "";
+    RESOURCE_KEYS.forEach((resource) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "resource-card";
+      wrapper.innerHTML = `
+        <div>
+          <strong>${resource.label}</strong>
+          <p>${resource.key}</p>
+        </div>
+        <div class="resource-controls">
+          <button type="button" data-action="decrease" data-key="${resource.key}">-</button>
+          <span class="resource-value">${state.resources[resource.key]}</span>
+          <button type="button" data-action="increase" data-key="${resource.key}">+</button>
+        </div>
+      `;
+      resourceGrid.appendChild(wrapper);
+    });
+  }
+
+  function renderSystems() {
+    systemList.innerHTML = "";
+    if (state.systems.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "No systems tracked yet.";
+      systemList.appendChild(empty);
+      return;
+    }
+
+    state.systems.forEach((system) => {
+      const item = document.createElement("li");
+      item.className = "system-card";
+      item.innerHTML = `
+        <div>
+          <strong>${system.name}</strong>
+          <p>P ${system.production} · R ${system.research} · C ${system.culture} · CTRL ${system.control}</p>
+        </div>
+        <button type="button" class="ghost" data-remove="${system.id}">Remove</button>
+      `;
+      systemList.appendChild(item);
+    });
   }
 
   function handleLogin(event) {
@@ -144,6 +227,72 @@ function initializeApp() {
     updateSessionNote("Player briefing loaded.", "success");
   }
 
+  function adjustResource(key, delta) {
+    state.resources[key] = Math.max(0, state.resources[key] + delta);
+    renderResources();
+  }
+
+  function handleResourceClick(event) {
+    const button = event.target.closest("button");
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.action;
+    const key = button.dataset.key;
+    if (!action || !key) {
+      return;
+    }
+
+    const delta = action === "increase" ? 1 : -1;
+    adjustResource(key, delta);
+  }
+
+  function handleResetResources() {
+    RESOURCE_KEYS.forEach((resource) => {
+      state.resources[resource.key] = 0;
+    });
+    renderResources();
+  }
+
+  function handleAddSystem(event) {
+    event.preventDefault();
+    const name = systemName.value.trim();
+    if (!name) {
+      setSystemFeedback("Enter a system name to continue.", "error");
+      return;
+    }
+
+    const system = {
+      id: crypto.randomUUID(),
+      name,
+      production: Number(systemProduction.value) || 0,
+      research: Number(systemResearch.value) || 0,
+      culture: Number(systemCulture.value) || 0,
+      control: Number(systemControl.value) || 0,
+    };
+
+    state.systems.push(system);
+    systemForm.reset();
+    systemProduction.value = "0";
+    systemResearch.value = "0";
+    systemCulture.value = "0";
+    systemControl.value = "0";
+    setSystemFeedback("System added.", "success");
+    renderSystems();
+  }
+
+  function handleRemoveSystem(event) {
+    const button = event.target.closest("button[data-remove]");
+    if (!button) {
+      return;
+    }
+
+    const id = button.dataset.remove;
+    state.systems = state.systems.filter((system) => system.id !== id);
+    renderSystems();
+  }
+
   document.getElementById("player-login")?.addEventListener("click", () => {
     loginUsername.focus();
   });
@@ -156,8 +305,14 @@ function initializeApp() {
   selectAscendancy.addEventListener("click", selectGame);
   confirmRuleset.addEventListener("click", confirmRulesetSelection);
   loadBriefing.addEventListener("click", loadBriefingNotes);
+  resourceGrid.addEventListener("click", handleResourceClick);
+  resetResources.addEventListener("click", handleResetResources);
+  systemForm.addEventListener("submit", handleAddSystem);
+  systemList.addEventListener("click", handleRemoveSystem);
   notesInput.addEventListener("input", updateNoteCount);
 
+  renderResources();
+  renderSystems();
   updateStatus();
   updateNoteCount();
 }

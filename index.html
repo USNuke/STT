@@ -116,6 +116,51 @@
 
         <article class="panel">
           <header>
+            <h3>Classic Resources</h3>
+            <p>Track empire resources when running classic rules.</p>
+          </header>
+          <div class="resource-grid" id="resource-grid"></div>
+          <div class="resource-actions">
+            <button type="button" class="ghost" id="reset-resources">Reset Resources</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <header>
+            <h3>System Tracking</h3>
+            <p>Record owned systems and their node values.</p>
+          </header>
+          <form class="system-form" id="system-form">
+            <label class="field">
+              <span>System Name</span>
+              <input id="system-name" name="system-name" placeholder="Vulcan" />
+            </label>
+            <div class="node-grid">
+              <label class="field">
+                <span>Production</span>
+                <input id="node-production" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>Research</span>
+                <input id="node-research" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>Culture</span>
+                <input id="node-culture" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>Control</span>
+                <input id="node-control" type="number" min="0" value="0" />
+              </label>
+            </div>
+            <button type="submit" class="primary">Add System</button>
+          </form>
+          <ul class="list" id="system-list"></ul>
+          <p class="feedback" id="system-feedback" aria-live="polite"></p>
+        </article>
+
+        <article class="panel">
+          <header>
             <h3>Player Briefing</h3>
             <p>Load player-specific objectives after login and ruleset selection.</p>
           </header>

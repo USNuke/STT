@@ -202,6 +202,65 @@ main {
   font-size: 0.95rem;
 }
 
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.resource-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.resource-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(91, 240, 255, 0.2);
+  background: rgba(7, 10, 20, 0.6);
+}
+
+.resource-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resource-controls button {
+  padding: 0.25rem 0.65rem;
+  border-radius: 0.5rem;
+}
+
+.resource-value {
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.resource-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.system-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.system-card button {
+  white-space: nowrap;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 0.75rem;
+}
+
 .feedback {
   min-height: 1.2rem;
   font-size: 0.85rem;
