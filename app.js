@@ -1,151 +1,165 @@
-const profiles = [
-  {
-    name: "Alex Rivera",
-    status: "Signed in",
-    device: "Tablet",
-  },
-  {
-    name: "Morgan Lee",
-    status: "Awaiting login",
-    device: "PC",
-  },
-  {
-    name: "Samir Patel",
-    status: "Signed in",
-    device: "Tablet",
-  },
-];
+const VALID_USERNAME = "dinq";
+const VALID_PASSWORD = "life";
 
-const games = [
-  {
-    title: "Star Trek Ascendancy",
-    tag: "Campaign",
-    detail: "Load cooperative variant pack",
-  },
-  {
-    title: "Gloomhaven",
-    tag: "Scenario",
-    detail: "Activate party perks",
-  },
-  {
-    title: "Root",
-    tag: "Skirmish",
-    detail: "Enable faction bots",
-  },
-];
-
-const sessionOptions = [
-  "Custom objectives enabled",
-  "Shared initiative tracker",
-  "Auto-save after each phase",
-  "Private player dashboards",
-  "Tablet friendly layout",
-  "Tutorial prompts",
-];
+const state = {
+  loggedIn: false,
+  selectedGame: null,
+  ruleset: "classic",
+  playersOnline: 0,
+};
 
 function initializeApp() {
-  const profileList = document.getElementById("profile-list");
-  const gameList = document.getElementById("game-list");
-  const optionGrid = document.getElementById("option-grid");
+  const sessionTitle = document.getElementById("session-title");
+  const playerCount = document.getElementById("player-count");
+  const rulesetValue = document.getElementById("ruleset");
+  const sessionNote = document.getElementById("session-note");
+  const loginForm = document.getElementById("login-form");
+  const loginUsername = document.getElementById("login-username");
+  const loginPassword = document.getElementById("login-password");
+  const loginFeedback = document.getElementById("login-feedback");
+  const gameFeedback = document.getElementById("game-feedback");
+  const selectAscendancy = document.getElementById("select-ascendancy");
+  const rulesetOptions = document.getElementById("ruleset-options");
+  const confirmRuleset = document.getElementById("confirm-ruleset");
   const notesInput = document.getElementById("session-notes");
   const noteCount = document.getElementById("note-count");
-  const sessionNote = document.getElementById("session-note");
+  const loadBriefing = document.getElementById("load-briefing");
 
-  if (!profileList || !gameList || !optionGrid || !notesInput || !noteCount || !sessionNote) {
+  if (
+    !sessionTitle ||
+    !playerCount ||
+    !rulesetValue ||
+    !sessionNote ||
+    !loginForm ||
+    !loginUsername ||
+    !loginPassword ||
+    !loginFeedback ||
+    !gameFeedback ||
+    !selectAscendancy ||
+    !rulesetOptions ||
+    !confirmRuleset ||
+    !notesInput ||
+    !noteCount ||
+    !loadBriefing
+  ) {
     return;
   }
 
-  function renderProfiles() {
-    profileList.innerHTML = "";
-    profiles.forEach((profile) => {
-      const card = document.createElement("div");
-      card.className = "profile-card";
-      card.innerHTML = `
-        <div>
-          <strong>${profile.name}</strong>
-          <p>${profile.status}</p>
-        </div>
-        <div>
-          <span>${profile.device}</span>
-          <p>Seat ready</p>
-        </div>
-      `;
-      profileList.appendChild(card);
-    });
+  function updateStatus() {
+    sessionTitle.textContent = state.selectedGame ?? "Awaiting Login";
+    playerCount.textContent = String(state.playersOnline);
+    rulesetValue.textContent = state.ruleset === "homebrew" ? "HOME" : "CLASSIC";
   }
 
-  function renderGames() {
-    gameList.innerHTML = "";
-    games.forEach((game) => {
-      const item = document.createElement("li");
-      item.className = "game-card";
-      item.innerHTML = `
-        <div>
-          <strong>${game.title}</strong>
-          <p>${game.detail}</p>
-        </div>
-        <span class="tag">${game.tag}</span>
-      `;
-      gameList.appendChild(item);
-    });
+  function updateSessionNote(message, tone = "info") {
+    sessionNote.textContent = message;
+    sessionNote.dataset.tone = tone;
   }
 
-  function renderOptions() {
-    optionGrid.innerHTML = "";
-    sessionOptions.forEach((option) => {
-      const chip = document.createElement("div");
-      chip.className = "option-chip";
-      chip.textContent = option;
-      optionGrid.appendChild(chip);
-    });
+  function setLoginFeedback(message, tone = "info") {
+    loginFeedback.textContent = message;
+    loginFeedback.dataset.tone = tone;
+  }
+
+  function setGameFeedback(message, tone = "info") {
+    gameFeedback.textContent = message;
+    gameFeedback.dataset.tone = tone;
   }
 
   function updateNoteCount() {
-    const count = notesInput.value.length;
-    noteCount.textContent = `${count} characters`;
+    noteCount.textContent = `${notesInput.value.length} characters`;
   }
 
-  function updateSessionNote(message) {
-    sessionNote.textContent = message;
+  function handleLogin(event) {
+    event.preventDefault();
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value;
+
+    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+      state.loggedIn = true;
+      state.playersOnline = 1;
+      setLoginFeedback("Login confirmed. Player profile loaded.", "success");
+      updateSessionNote("Login complete. Select Star Trek Ascendancy to continue.", "success");
+    } else {
+      state.loggedIn = false;
+      state.playersOnline = 0;
+      setLoginFeedback("Login failed. Check username and password.", "error");
+      updateSessionNote("Login required to load player-specific data.", "error");
+    }
+    updateStatus();
   }
 
-  function wireActions() {
-    document.getElementById("player-login")?.addEventListener("click", () => {
-      updateSessionNote("Login window opened. Prompting players to authenticate.");
-    });
+  function selectGame() {
+    if (!state.loggedIn) {
+      setGameFeedback("Please log in before selecting a game.", "error");
+      updateSessionNote("Authentication required before game selection.", "error");
+      return;
+    }
 
-    document.getElementById("choose-game")?.addEventListener("click", () => {
-      updateSessionNote("Select a game to load player dashboards and scenario data.");
-    });
-
-    document.getElementById("invite-player")?.addEventListener("click", () => {
-      updateSessionNote("Invite sent. Waiting for another player to join.");
-    });
-
-    document.getElementById("lock-roster")?.addEventListener("click", () => {
-      updateSessionNote("Roster locked. Loading player-specific information.");
-    });
-
-    document.getElementById("manage-library")?.addEventListener("click", () => {
-      updateSessionNote("Library manager opened. Add or remove games as needed.");
-    });
-
-    document.getElementById("save-options")?.addEventListener("click", () => {
-      updateSessionNote("Session options saved. Ready to launch player views.");
-    });
-
-    document.getElementById("send-briefing")?.addEventListener("click", () => {
-      updateSessionNote("Player briefing delivered to all connected devices.");
-    });
-
-    notesInput.addEventListener("input", updateNoteCount);
+    state.selectedGame = "Star Trek Ascendancy";
+    setGameFeedback("Star Trek Ascendancy selected. Choose Classic or Homebrew.", "success");
+    updateSessionNote("Game selected. Confirm ruleset to load session options.", "info");
+    updateStatus();
   }
 
-  renderProfiles();
-  renderGames();
-  renderOptions();
+  function confirmRulesetSelection() {
+    if (!state.selectedGame) {
+      updateSessionNote("Select a game before confirming a ruleset.", "error");
+      return;
+    }
+
+    const selected = rulesetOptions.querySelector("input[name='ruleset']:checked");
+    if (!selected) {
+      updateSessionNote("Choose Classic or Homebrew to continue.", "error");
+      return;
+    }
+
+    state.ruleset = selected.value;
+    updateStatus();
+
+    if (state.ruleset === "homebrew") {
+      updateSessionNote(
+        "Homebrew enabled. Custom mods will load with player dashboards.",
+        "success"
+      );
+    } else {
+      updateSessionNote("Classic rules confirmed. No mods applied.", "success");
+    }
+  }
+
+  function loadBriefingNotes() {
+    if (!state.loggedIn || !state.selectedGame) {
+      updateSessionNote("Login and select a game before loading briefings.", "error");
+      return;
+    }
+
+    const briefing =
+      state.ruleset === "homebrew"
+        ? "Homebrew briefing loaded. Review custom objectives and mod notes."
+        : "Classic briefing loaded. Follow official objectives and mission timing.";
+
+    notesInput.removeAttribute("readonly");
+    notesInput.value = briefing;
+    updateNoteCount();
+    updateSessionNote("Player briefing loaded.", "success");
+  }
+
+  document.getElementById("player-login")?.addEventListener("click", () => {
+    loginUsername.focus();
+  });
+
+  document.getElementById("open-library")?.addEventListener("click", () => {
+    selectAscendancy.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  loginForm.addEventListener("submit", handleLogin);
+  selectAscendancy.addEventListener("click", selectGame);
+  confirmRuleset.addEventListener("click", confirmRulesetSelection);
+  loadBriefing.addEventListener("click", loadBriefingNotes);
+  notesInput.addEventListener("input", updateNoteCount);
+
+  updateStatus();
   updateNoteCount();
-  wireActions();
 }
 
 if (document.readyState === "loading") {
