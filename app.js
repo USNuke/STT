@@ -1,66 +1,102 @@
-const factions = [
+const profiles = [
   {
-    name: "United Federation of Planets",
-    diplomacy: "High",
-    research: "Advanced",
-    logistics: "Stable",
+    name: "Alex Rivera",
+    status: "Signed in",
+    device: "Tablet",
   },
   {
-    name: "Klingon Empire",
-    diplomacy: "Volatile",
-    research: "Aggressive",
-    logistics: "Rising",
+    name: "Morgan Lee",
+    status: "Awaiting login",
+    device: "PC",
   },
   {
-    name: "Romulan Star Empire",
-    diplomacy: "Cautious",
-    research: "Stealth",
-    logistics: "Hidden",
+    name: "Samir Patel",
+    status: "Signed in",
+    device: "Tablet",
   },
 ];
 
-const fleetMissions = [
-  "USS Venture escorting convoy to Sector 9.",
-  "IKS Bortas leading border skirmish drills.",
-  "IRW Khazara monitoring neutral zone anomalies.",
+const games = [
+  {
+    title: "Star Trek Ascendancy",
+    tag: "Campaign",
+    detail: "Load cooperative variant pack",
+  },
+  {
+    title: "Gloomhaven",
+    tag: "Scenario",
+    detail: "Activate party perks",
+  },
+  {
+    title: "Root",
+    tag: "Skirmish",
+    detail: "Enable faction bots",
+  },
+];
+
+const sessionOptions = [
+  "Custom objectives enabled",
+  "Shared initiative tracker",
+  "Auto-save after each phase",
+  "Private player dashboards",
+  "Tablet friendly layout",
+  "Tutorial prompts",
 ];
 
 function initializeApp() {
-  const factionList = document.getElementById("faction-list");
-  const fleetList = document.getElementById("fleet-list");
+  const profileList = document.getElementById("profile-list");
+  const gameList = document.getElementById("game-list");
+  const optionGrid = document.getElementById("option-grid");
   const notesInput = document.getElementById("session-notes");
   const noteCount = document.getElementById("note-count");
   const sessionNote = document.getElementById("session-note");
 
-  if (!factionList || !fleetList || !notesInput || !noteCount || !sessionNote) {
+  if (!profileList || !gameList || !optionGrid || !notesInput || !noteCount || !sessionNote) {
     return;
   }
 
-  function renderFactions() {
-    factionList.innerHTML = "";
-    factions.forEach((faction) => {
+  function renderProfiles() {
+    profileList.innerHTML = "";
+    profiles.forEach((profile) => {
       const card = document.createElement("div");
-      card.className = "faction-card";
+      card.className = "profile-card";
       card.innerHTML = `
         <div>
-          <strong>${faction.name}</strong>
-          <p>Diplomacy: ${faction.diplomacy}</p>
+          <strong>${profile.name}</strong>
+          <p>${profile.status}</p>
         </div>
         <div>
-          <span>${faction.research}</span>
-          <p>Logistics: ${faction.logistics}</p>
+          <span>${profile.device}</span>
+          <p>Seat ready</p>
         </div>
       `;
-      factionList.appendChild(card);
+      profileList.appendChild(card);
     });
   }
 
-  function renderFleet() {
-    fleetList.innerHTML = "";
-    fleetMissions.forEach((mission) => {
+  function renderGames() {
+    gameList.innerHTML = "";
+    games.forEach((game) => {
       const item = document.createElement("li");
-      item.textContent = mission;
-      fleetList.appendChild(item);
+      item.className = "game-card";
+      item.innerHTML = `
+        <div>
+          <strong>${game.title}</strong>
+          <p>${game.detail}</p>
+        </div>
+        <span class="tag">${game.tag}</span>
+      `;
+      gameList.appendChild(item);
+    });
+  }
+
+  function renderOptions() {
+    optionGrid.innerHTML = "";
+    sessionOptions.forEach((option) => {
+      const chip = document.createElement("div");
+      chip.className = "option-chip";
+      chip.textContent = option;
+      optionGrid.appendChild(chip);
     });
   }
 
@@ -74,52 +110,40 @@ function initializeApp() {
   }
 
   function wireActions() {
-    document.getElementById("new-session")?.addEventListener("click", () => {
-      updateSessionNote(
-        "Fresh session started. Remember to reveal new exploration tokens."
-      );
+    document.getElementById("player-login")?.addEventListener("click", () => {
+      updateSessionNote("Login window opened. Prompting players to authenticate.");
     });
 
-    document.getElementById("share-summary")?.addEventListener("click", () => {
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard
-          .writeText("Ascendancy Companion summary ready for the crew.")
-          .then(() => updateSessionNote("Summary copied to clipboard."))
-          .catch(() =>
-            updateSessionNote("Copy failed. Use manual share from notes.")
-          );
-      } else {
-        updateSessionNote("Clipboard unavailable. Copy manually from notes.");
-      }
+    document.getElementById("choose-game")?.addEventListener("click", () => {
+      updateSessionNote("Select a game to load player dashboards and scenario data.");
     });
 
-    document.getElementById("forecast")?.addEventListener("click", () => {
-      updateSessionNote(
-        "Forecast: prioritize research to unlock warp conduits next round."
-      );
+    document.getElementById("invite-player")?.addEventListener("click", () => {
+      updateSessionNote("Invite sent. Waiting for another player to join.");
     });
 
-    document.getElementById("log-turn")?.addEventListener("click", () => {
-      updateSessionNote(
-        "Turn logged. Update crew assignments and initiate end phase checks."
-      );
+    document.getElementById("lock-roster")?.addEventListener("click", () => {
+      updateSessionNote("Roster locked. Loading player-specific information.");
     });
 
-    document.getElementById("add-mission")?.addEventListener("click", () => {
-      const mission = `New mission logged at ${new Date().toLocaleTimeString()}.`;
-      fleetMissions.unshift(mission);
-      renderFleet();
+    document.getElementById("manage-library")?.addEventListener("click", () => {
+      updateSessionNote("Library manager opened. Add or remove games as needed.");
     });
 
-    document.getElementById("save-notes")?.addEventListener("click", () => {
-      updateSessionNote("Notes archived to session log.");
+    document.getElementById("save-options")?.addEventListener("click", () => {
+      updateSessionNote("Session options saved. Ready to launch player views.");
+    });
+
+    document.getElementById("send-briefing")?.addEventListener("click", () => {
+      updateSessionNote("Player briefing delivered to all connected devices.");
     });
 
     notesInput.addEventListener("input", updateNoteCount);
   }
 
-  renderFactions();
-  renderFleet();
+  renderProfiles();
+  renderGames();
+  renderOptions();
   updateNoteCount();
   wireActions();
 }

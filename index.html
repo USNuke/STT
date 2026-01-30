@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ascendancy Companion</title>
+    <title>Custom Board Game Companion</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,32 +15,33 @@
   <body>
     <header class="hero">
       <div class="hero__content">
-        <p class="hero__eyebrow">Star Trek Ascendancy</p>
-        <h1>Custom Ascendancy Companion</h1>
+        <p class="hero__eyebrow">Player Companion</p>
+        <h1>Custom Board Game Companion</h1>
         <p class="hero__subtitle">
-          Organize your sessions, track resource momentum, and keep every fleet action in view.
+          Log in on a tablet or PC, pick your game, tune the session options, and load personalized player
+          dashboards.
         </p>
         <div class="hero__actions">
-          <button class="primary" type="button" id="new-session">Start New Session</button>
-          <button class="ghost" type="button" id="share-summary">Share Summary</button>
+          <button class="primary" type="button" id="player-login">Player Login</button>
+          <button class="ghost" type="button" id="choose-game">Choose Game</button>
         </div>
       </div>
       <div class="hero__panel">
         <div class="status-card">
-          <p class="status-card__label">Current Starmap</p>
-          <h2>Alpha Quadrant</h2>
+          <p class="status-card__label">Active Table</p>
+          <h2>Co-Op Command Crew</h2>
           <div class="status-grid">
             <div>
-              <span class="status-card__value" id="turn-count">07</span>
-              <span class="status-card__meta">Turn</span>
+              <span class="status-card__value" id="player-count">03</span>
+              <span class="status-card__meta">Players Online</span>
             </div>
             <div>
-              <span class="status-card__value" id="difficulty">III</span>
-              <span class="status-card__meta">Difficulty</span>
+              <span class="status-card__value" id="session-stage">SETUP</span>
+              <span class="status-card__meta">Session Stage</span>
             </div>
           </div>
           <p class="status-card__note" id="session-note">
-            Borg tension rising near sector 12. Continue diplomatic overture.
+            Waiting for player confirmations before loading individual objectives.
           </p>
         </div>
       </div>
@@ -50,65 +51,47 @@
       <section class="grid">
         <article class="panel">
           <header>
-            <h3>Faction Readiness</h3>
-            <p>Quick scan of diplomacy, research, and logistics across active factions.</p>
+            <h3>Player Login</h3>
+            <p>Authenticate player profiles and confirm who is seated at the table.</p>
           </header>
-          <div class="faction-list" id="faction-list"></div>
-        </article>
-
-        <article class="panel">
-          <header>
-            <h3>Resource Cadence</h3>
-            <p>Estimate short-term production to guide build orders and fleet upgrades.</p>
-          </header>
-          <div class="meter-stack">
-            <div class="meter">
-              <div class="meter__label">
-                <span>Production</span>
-                <span id="production-value">+4</span>
-              </div>
-              <div class="meter__bar"><span style="width: 72%"></span></div>
-            </div>
-            <div class="meter">
-              <div class="meter__label">
-                <span>Research</span>
-                <span id="research-value">+3</span>
-              </div>
-              <div class="meter__bar"><span style="width: 58%"></span></div>
-            </div>
-            <div class="meter">
-              <div class="meter__label">
-                <span>Culture</span>
-                <span id="culture-value">+2</span>
-              </div>
-              <div class="meter__bar"><span style="width: 44%"></span></div>
-            </div>
-          </div>
+          <div class="profile-list" id="profile-list"></div>
           <div class="resource-actions">
-            <button type="button" class="ghost" id="forecast">Generate Forecast</button>
-            <button type="button" class="primary" id="log-turn">Log Turn</button>
+            <button type="button" class="ghost" id="invite-player">Invite Player</button>
+            <button type="button" class="primary" id="lock-roster">Lock Roster</button>
           </div>
         </article>
 
         <article class="panel">
           <header>
-            <h3>Fleet Operations</h3>
-            <p>Plan missions, flagships, and tactical objectives for this round.</p>
+            <h3>Game Library</h3>
+            <p>Select which game is running and load the matching companion ruleset.</p>
           </header>
-          <ul class="list" id="fleet-list"></ul>
-          <button type="button" class="ghost" id="add-mission">Add Mission</button>
+          <ul class="list" id="game-list"></ul>
+          <button type="button" class="ghost" id="manage-library">Manage Library</button>
         </article>
 
         <article class="panel">
           <header>
-            <h3>Session Notes</h3>
-            <p>Capture events for the recap or turn-by-turn summaries.</p>
+            <h3>Session Options</h3>
+            <p>Toggle house rules, difficulty, and scenario packs before launch.</p>
+          </header>
+          <div class="option-grid" id="option-grid"></div>
+          <button type="button" class="primary" id="save-options">Save Options</button>
+        </article>
+
+        <article class="panel">
+          <header>
+            <h3>Player Briefing</h3>
+            <p>Distribute player-specific objectives and recap notes before the first round.</p>
           </header>
           <div class="notes">
-            <textarea id="session-notes" placeholder="Log key events, alliances, or anomalies..."></textarea>
+            <textarea
+              id="session-notes"
+              placeholder="Share loadouts, private goals, or scenario reminders..."
+            ></textarea>
             <div class="notes__footer">
               <span id="note-count">0 characters</span>
-              <button type="button" class="primary" id="save-notes">Save Notes</button>
+              <button type="button" class="primary" id="send-briefing">Send Briefing</button>
             </div>
           </div>
         </article>
@@ -116,7 +99,7 @@
     </main>
 
     <footer>
-      <p>Built for captains who want every Ascendancy detail at their fingertips.</p>
+      <p>Built for player-facing companions that keep every session organized.</p>
     </footer>
 
     <script src="app.js"></script>
